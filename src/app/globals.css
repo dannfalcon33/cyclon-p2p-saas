@@ -1,0 +1,96 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --bg-base: #08090d;
+    --bg-surface: #101218;
+    --bg-surface-elevated: #161922;
+    --bg-surface-highlight: #1e2230;
+    
+    --border-subtle: #1c212e;
+    --border-medium: #283042;
+    --border-accent: #00ff66;
+
+    --text-primary: #f8fafc;
+    --text-secondary: #94a3b8;
+    --text-muted: #64748b;
+
+    --neon-green: #00ff66;
+    --neon-green-hover: #00e55b;
+    --neon-green-glow: rgba(0, 255, 102, 0.2);
+    --neon-green-dim: rgba(0, 255, 102, 0.08);
+
+    --neon-cyan: #00f0ff;
+    --neon-cyan-glow: rgba(0, 240, 255, 0.2);
+
+    --status-success: #00ff66;
+    --status-warning: #f59e0b;
+    --status-error: #ef4444;
+    --status-info: #06b6d4;
+  }
+
+  body {
+    background-color: var(--bg-base);
+    color: var(--text-primary);
+    font-family: var(--font-geist-sans), system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    overflow-x: hidden;
+  }
+
+  /* Cyberpunk Custom Scrollbar */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: #08090d;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #1e2433;
+    border-radius: 3px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #00ff66;
+  }
+}
+
+/* Glassmorphism & Cyberpunk Accents */
+.glass-panel {
+  background: rgba(16, 18, 24, 0.75);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--border-subtle);
+}
+
+.glass-panel-interactive {
+  background: rgba(16, 18, 24, 0.75);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--border-subtle);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.glass-panel-interactive:hover {
+  border-color: rgba(0, 255, 102, 0.3);
+  box-shadow: 0 0 25px rgba(0, 255, 102, 0.08);
+  transform: translateY(-1px);
+}
+
+.neon-border-glow {
+  border: 1px solid var(--neon-green);
+  box-shadow: 0 0 15px var(--neon-green-glow);
+}
+
+.neon-text-glow {
+  color: var(--neon-green);
+  text-shadow: 0 0 12px var(--neon-green-glow);
+}
+
+.cyber-grid-bg {
+  background-image: 
+    linear-gradient(to right, rgba(28, 33, 46, 0.3) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(28, 33, 46, 0.3) 1px, transparent 1px);
+  background-size: 40px 40px;
+}
+
+.radial-glow-green {
+  background: radial-gradient(circle at 50% 0%, rgba(0, 255, 102, 0.12) 0%, transparent 60%);
+}
