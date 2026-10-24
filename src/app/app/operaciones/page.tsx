@@ -47,6 +47,15 @@ export default function OperationsPage() {
   const [isCancelling, setIsCancelling] = React.useState(false);
   const [feedback, setFeedback] = React.useState<{ type: "success" | "error"; message: string } | null>(null);
 
+  // Excel Export Modal State
+  const [isExportModalOpen, setIsExportModalOpen] = React.useState(false);
+  const [exportPeriod, setExportPeriod] = React.useState("all");
+  const [exportCountry, setExportCountry] = React.useState("ALL");
+  const [exportCurrency, setExportCurrency] = React.useState("ALL");
+  const [exportStatus, setExportStatus] = React.useState("ALL");
+  const [exportSide, setExportSide] = React.useState("ALL");
+  const [exportExchange, setExportExchange] = React.useState("ALL");
+
   const loadOperations = React.useCallback(async () => {
     try {
       setIsLoading(true);
@@ -122,7 +131,7 @@ export default function OperationsPage() {
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2.5">
           <Button
             variant="ghost"
             size="sm"
@@ -131,6 +140,16 @@ export default function OperationsPage() {
           >
             <RefreshCw className={`w-3.5 h-3.5 mr-1.5 ${isLoading ? "animate-spin" : ""}`} />
             Actualizar
+          </Button>
+
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => setIsExportModalOpen(true)}
+            className="text-xs font-mono"
+          >
+            <FileSpreadsheet className="w-4 h-4 mr-1.5 text-[#00ff66]" />
+            Exportar Excel (.xlsx)
           </Button>
 
           <Link href="/app/operaciones/nueva">
@@ -550,6 +569,132 @@ export default function OperationsPage() {
               onClick={handleConfirmCancel}
             >
               Confirmar Cancelación
+            </Button>
+          </div>
+        </div>
+      </Dialog>
+
+      {/* MODAL: Exportación a Excel (.xlsx) */}
+      <Dialog
+        isOpen={isExportModalOpen}
+        onClose={() => setIsExportModalOpen(false)}
+        title="Exportar Bitácora a Excel (.xlsx)"
+      >
+        <div className="space-y-4 text-xs font-mono">
+          <div className="p-3 rounded-lg bg-[#0e1017] border border-[#1f2533] text-slate-300 space-y-1">
+            <p className="font-semibold text-white">Generador de Reportes Multilibro:</p>
+            <p className="text-[11px] text-slate-400">
+              Genera un archivo nativo <strong className="text-[#00ff66]">.xlsx</strong> con 4 hojas: <em>Operaciones</em>, <em>Resumen por Moneda</em>, <em>Comisiones</em> y <em>Parámetros del Reporte</em>, con celdas numéricas y sanitizado contra formula injection.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <Select
+              label="Período Temporal"
+              value={exportPeriod}
+              onChange={(e) => setExportPeriod(e.target.value)}
+            >
+              <option value="all">Todo el Historial</option>
+              <option value="today">Hoy</option>
+              <option value="7d">Últimos 7 días</option>
+              <option value="30d">Últimos 30 días</option>
+              <option value="month">Este Mes</option>
+            </Select>
+
+            <Select
+              label="País Operativo"
+              value={exportCountry}
+              onChange={(e) => setExportCountry(e.target.value)}
+            >
+              <option value="ALL">Todos los Países</option>
+              <option value="VE">Venezuela (VE)</option>
+              <option value="CO">Colombia (CO)</option>
+              <option value="BR">Brasil (BR)</option>
+              <option value="AR">Argentina (AR)</option>
+              <option value="EC">Ecuador (EC)</option>
+              <option value="PE">Perú (PE)</option>
+              <option value="CL">Chile (CL)</option>
+            </Select>
+
+            <Select
+              label="Moneda Fiat"
+              value={exportCurrency}
+              onChange={(e) => setExportCurrency(e.target.value)}
+            >
+              <option value="ALL">Todas las Monedas</option>
+              <option value="VES">VES — Bolívar</option>
+              <option value="USD">USD — Dólar</option>
+              <option value="COP">COP — Peso Col.</option>
+              <option value="BRL">BRL — Real Bras.</option>
+              <option value="ARS">ARS — Peso Arg.</option>
+              <option value="PEN">PEN — Sol Peruano</option>
+              <option value="CLP">CLP — Peso Chileno</option>
+            </Select>
+
+            <Select
+              label="Estado de la Orden"
+              value={exportStatus}
+              onChange={(e) => setExportStatus(e.target.value)}
+            >
+              <option value="ALL">Todos los Estados</option>
+              <option value="completed">Solo Completadas</option>
+              <option value="pending">Solo Pendientes</option>
+              <option value="cancelled">Solo Canceladas</option>
+            </Select>
+
+            <Select
+              label="Lado / Tipo"
+              value={exportSide}
+              onChange={(e) => setExportSide(e.target.value)}
+            >
+              <option value="ALL">Compras y Ventas</option>
+              <option value="buy">Solo Compras</option>
+              <option value="sell">Solo Ventas</option>
+            </Select>
+
+            <Select
+              label="Exchange"
+              value={exportExchange}
+              onChange={(e) => setExportExchange(e.target.value)}
+            >
+              <option value="ALL">Todos los Exchanges</option>
+              <option value="binance">Binance P2P</option>
+              <option value="bybit">Bybit P2P</option>
+              <option value="bitget">Bitget P2P</option>
+            </Select>
+          </div>
+
+          <div className="p-2.5 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-300 text-[11px]">
+            ⚠️ <strong>Disclaimer Legal:</strong> Este reporte exporta datos operativos para tu control contable y no certifica cumplimiento tributario por sí solo ni constituye declaración oficial ante entes fiscales.
+          </div>
+
+          <div className="flex items-center justify-end gap-2 pt-2 border-t border-[#1a1f2c]">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setIsExportModalOpen(false)}
+            >
+              Cancelar
+            </Button>
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={() => {
+                const params = new URLSearchParams();
+                if (exportPeriod !== "all") params.set("period", exportPeriod);
+                if (exportCountry !== "ALL") params.set("country", exportCountry);
+                if (exportCurrency !== "ALL") params.set("currency", exportCurrency);
+                if (exportStatus !== "ALL") params.set("status", exportStatus);
+                if (exportSide !== "ALL") params.set("side", exportSide);
+                if (exportExchange !== "ALL") params.set("exchange", exportExchange);
+
+                window.open(`/api/export/excel?${params.toString()}`, "_blank");
+                setIsExportModalOpen(false);
+                notify("Descarga iniciada: Generando libro Excel con hojas de Operaciones, Resumen y Comisiones.");
+              }}
+            >
+              <FileSpreadsheet className="w-4 h-4 mr-1.5" />
+              Descargar Libro Excel (.xlsx)
             </Button>
           </div>
         </div>

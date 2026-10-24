@@ -12,325 +12,374 @@ import {
   Search,
   UserCheck,
   UserX,
+  ShieldAlert,
+  Calendar,
+  Globe2,
+  RefreshCw,
+  Users,
 } from "lucide-react";
-
-interface Client {
-  id: string;
-  name: string;
-  email: string;
-  country: string;
-  plan: "free_trial" | "business" | "enterprise";
-  status: "active" | "suspended" | "pending_verification";
-  registeredAt: string;
-  trialEndsAt: string;
-  operationsCount: number;
-  suspensionReason?: string;
-}
-
-const INITIAL_CLIENTS: Client[] = [
-  {
-    id: "USR-001",
-    name: "Carlos Mendoza P2P",
-    email: "carlos.p2p@gmail.com",
-    country: "VE",
-    plan: "business",
-    status: "active",
-    registeredAt: "2026-09-12",
-    trialEndsAt: "2026-09-19",
-    operationsCount: 142,
-  },
-  {
-    id: "USR-002",
-    name: "Bogota Arbitrage Desk",
-    email: "desk@bogotacrypto.co",
-    country: "CO",
-    plan: "enterprise",
-    status: "active",
-    registeredAt: "2026-10-01",
-    trialEndsAt: "2026-10-08",
-    operationsCount: 89,
-  },
-  {
-    id: "USR-003",
-    name: "Sampa Trader Brasil",
-    email: "lucas.pix@bol.com.br",
-    country: "BR",
-    plan: "free_trial",
-    status: "active",
-    registeredAt: "2026-10-18",
-    trialEndsAt: "2026-10-25",
-    operationsCount: 12,
-  },
-  {
-    id: "USR-004",
-    name: "Trader Suspicious Arg",
-    email: "anonimo@trader.ar",
-    country: "AR",
-    plan: "free_trial",
-    status: "suspended",
-    registeredAt: "2026-10-05",
-    trialEndsAt: "2026-10-12",
-    operationsCount: 4,
-    suspensionReason: "Sospecha de actividad contraria a términos de servicio.",
-  },
-];
+import {
+  fetchMasterClientsAction,
+  suspendMerchantAction,
+  reactivateMerchantAction,
+} from "@/app/actions/master";
 
 export default function MasterClientsPage() {
-  const [clients, setClients] = React.useState<Client[]>(INITIAL_CLIENTS);
+  const [clients, setClients] = React.useState<any[]>([]);
+  const [isLoading, setIsLoading] = React.useState(true);
   const [searchTerm, setSearchTerm] = React.useState("");
   const [statusFilter, setStatusFilter] = React.useState("ALL");
   const [planFilter, setPlanFilter] = React.useState("ALL");
 
   // Selected client for suspension/reactivation
-  const [selectedClient, setSelectedClient] = React.useState<Client | null>(null);
+  const [selectedClient, setSelectedClient] = React.useState<any>(null);
   const [actionType, setActionType] = React.useState<"suspend" | "reactivate">("suspend");
   const [adminReason, setAdminReason] = React.useState("");
-  const [actionFeedback, setActionFeedback] = React.useState<string | null>(null);
+  const [isSubmittingAction, setIsSubmittingAction] = React.useState(false);
+  const [actionFeedback, setActionFeedback] = React.useState<{
+    type: "success" | "error";
+    message: string;
+  } | null>(null);
 
-  const filteredClients = clients.filter((c) => {
-    const matchesSearch =
-      c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      c.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      c.id.toLowerCase().includes(searchTerm.toLowerCase());
+  const loadClients = React.useCallback(async () => {
+    try {
+      setIsLoading(true);
+      const data = await fetchMasterClientsAction({
+        search: searchTerm,
+        status: statusFilter,
+        plan: planFilter,
+      });
+      setClients(data);
+    } catch (err: any) {
+      setActionFeedback({
+        type: "error",
+        message: err.message || "Error al cargar la lista de comerciantes.",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  }, [searchTerm, statusFilter, planFilter]);
 
-    const matchesStatus = statusFilter === "ALL" || c.status === statusFilter;
-    const matchesPlan = planFilter === "ALL" || c.plan === planFilter;
+  React.useEffect(() => {
+    loadClients();
+  }, [loadClients]);
 
-    return matchesSearch && matchesStatus && matchesPlan;
-  });
-
-  const handleOpenAction = (client: Client, type: "suspend" | "reactivate") => {
+  const handleOpenActionModal = (client: any, type: "suspend" | "reactivate") => {
     setSelectedClient(client);
     setActionType(type);
     setAdminReason("");
+    setActionFeedback(null);
   };
 
-  const handleConfirmAction = (e: React.FormEvent) => {
+  const handleConfirmAction = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedClient) return;
+    if (!selectedClient || !adminReason.trim()) return;
 
-    if (actionType === "suspend" && !adminReason.trim()) {
-      alert("Es obligatorio registrar un motivo administrativo para suspender la cuenta.");
-      return;
+    setIsSubmittingAction(true);
+    setActionFeedback(null);
+
+    try {
+      if (actionType === "suspend") {
+        const res = await suspendMerchantAction({
+          userId: selectedClient.id,
+          reason: adminReason.trim(),
+        });
+        setActionFeedback({ type: "success", message: res.message });
+      } else {
+        const res = await reactivateMerchantAction({
+          userId: selectedClient.id,
+          reason: adminReason.trim(),
+        });
+        setActionFeedback({ type: "success", message: res.message });
+      }
+
+      setSelectedClient(null);
+      await loadClients();
+    } catch (err: any) {
+      setActionFeedback({
+        type: "error",
+        message: err.message || "Error al procesar la acción administrativa.",
+      });
+    } finally {
+      setIsSubmittingAction(false);
     }
-
-    setClients((prev) =>
-      prev.map((c) =>
-        c.id === selectedClient.id
-          ? {
-              ...c,
-              status: actionType === "suspend" ? "suspended" : "active",
-              suspensionReason: actionType === "suspend" ? adminReason : undefined,
-            }
-          : c
-      )
-    );
-
-    const message =
-      actionType === "suspend"
-        ? `Cuenta ${selectedClient.email} suspendida exitosamente. Acceso revocado y datos preservados.`
-        : `Cuenta ${selectedClient.email} reactivada exitosamente.`;
-
-    setActionFeedback(message);
-    setSelectedClient(null);
-    setTimeout(() => setActionFeedback(null), 4000);
   };
 
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="pb-4 border-b border-[#261f18]">
-        <h1 className="text-2xl font-bold tracking-tight text-white">
-          Gestión de Clientes SaaS
-        </h1>
-        <p className="text-xs text-slate-400 mt-1">
-          Búsqueda, auditoría de suscripciones y acciones de suspensión lógica con motivo administrativo.
-        </p>
+      <div className="pb-4 border-b border-[#261f18] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight text-white flex items-center gap-2">
+            <Users className="w-6 h-6 text-amber-400" />
+            Directorio de Comerciantes Registrados
+          </h1>
+          <p className="text-xs text-slate-400 mt-1">
+            Supervisa cuentas de clientes, audita actividad P2P y ejecuta suspensiones o reactivaciones con trazabilidad obligatoria.
+          </p>
+        </div>
+
+        <Button
+          variant="secondary"
+          size="sm"
+          onClick={loadClients}
+          disabled={isLoading}
+          className="text-xs font-mono shrink-0"
+        >
+          <RefreshCw className={`w-3.5 h-3.5 mr-1.5 ${isLoading ? "animate-spin" : ""}`} />
+          Refrescar Lista
+        </Button>
       </div>
 
       {actionFeedback && (
-        <Alert variant="success" title="Acción Administrativa Registrada">
-          {actionFeedback}
+        <Alert
+          variant={actionFeedback.type === "success" ? "success" : "error"}
+          title={actionFeedback.type === "success" ? "Acción Completada" : "Error"}
+        >
+          {actionFeedback.message}
         </Alert>
       )}
 
-      {/* Filter Bar */}
-      <div className="p-4 rounded-xl bg-[#120f0b] border border-[#292017] space-y-3">
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <Input
-            placeholder="Buscar por nombre, correo, ID..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            leftIcon={<Search className="w-4 h-4" />}
-            className="text-xs"
-          />
-
-          <Select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="text-xs"
-          >
-            <option value="ALL">Todos los Estados</option>
-            <option value="active">Activos</option>
-            <option value="suspended">Suspendidos</option>
-          </Select>
-
-          <Select
-            value={planFilter}
-            onChange={(e) => setPlanFilter(e.target.value)}
-            className="text-xs"
-          >
-            <option value="ALL">Todos los Planes</option>
-            <option value="free_trial">Free Trial</option>
-            <option value="business">Business</option>
-            <option value="enterprise">Enterprise</option>
-          </Select>
-        </div>
-      </div>
-
-      {/* Clients Table */}
+      {/* Filter and Search Bar */}
       <Card className="bg-[#120f0b] border-[#292017]">
-        <CardContent className="p-0">
-          <table className="w-full text-xs font-mono text-left">
-            <thead className="bg-[#18130e] text-slate-400 uppercase text-[10px] tracking-wider border-b border-[#292017]">
-              <tr>
-                <th className="p-3.5">Cliente / ID</th>
-                <th className="p-3.5">País</th>
-                <th className="p-3.5">Plan Actual</th>
-                <th className="p-3.5">Operaciones</th>
-                <th className="p-3.5">Registro</th>
-                <th className="p-3.5">Estado</th>
-                <th className="p-3.5 text-right">Acción</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-[#211a13] text-slate-200">
-              {filteredClients.map((c) => (
-                <tr key={c.id} className="hover:bg-[#1a140f] transition-colors">
-                  <td className="p-3.5">
-                    <div className="font-bold text-white">{c.name}</div>
-                    <div className="text-[10px] text-slate-400">{c.email}</div>
-                  </td>
-                  <td className="p-3.5 font-bold text-amber-300">{c.country}</td>
-                  <td className="p-3.5">
-                    {c.plan === "free_trial" && (
-                      <Badge variant="neutral" className="text-[9px]">Trial (7d)</Badge>
-                    )}
-                    {c.plan === "business" && (
-                      <Badge variant="neon" className="text-[9px]">Business</Badge>
-                    )}
-                    {c.plan === "enterprise" && (
-                      <Badge variant="cyber" className="text-[9px]">Enterprise</Badge>
-                    )}
-                  </td>
-                  <td className="p-3.5 font-bold text-slate-300">
-                    {c.operationsCount} ops
-                  </td>
-                  <td className="p-3.5 text-slate-400">{c.registeredAt}</td>
-                  <td className="p-3.5">
-                    {c.status === "active" ? (
-                      <span className="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 text-[10px] border border-emerald-500/30">
-                        Activo
-                      </span>
-                    ) : (
-                      <span className="px-2 py-0.5 rounded bg-red-500/10 text-red-400 text-[10px] border border-red-500/30">
-                        Suspendido
-                      </span>
-                    )}
-                  </td>
-                  <td className="p-3.5 text-right">
-                    {c.status === "active" ? (
-                      <Button
-                        variant="danger"
-                        size="sm"
-                        className="text-[10px] py-1 px-2.5"
-                        onClick={() => handleOpenAction(c, "suspend")}
-                      >
-                        <UserX className="w-3 h-3 mr-1" />
-                        Suspender
-                      </Button>
-                    ) : (
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        className="text-[10px] py-1 px-2.5 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/10"
-                        onClick={() => handleOpenAction(c, "reactivate")}
-                      >
-                        <UserCheck className="w-3 h-3 mr-1" />
-                        Reactivar
-                      </Button>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <CardContent className="p-4 flex flex-col sm:flex-row gap-3">
+          <div className="relative flex-1">
+            <Search className="w-4 h-4 text-slate-500 absolute left-3 top-3" />
+            <Input
+              placeholder="Buscar por nombre, correo electrónico o ID..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-9 text-xs bg-[#19140f] border-[#292017]"
+            />
+          </div>
+
+          <div className="flex gap-2">
+            <Select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="w-40 text-xs bg-[#19140f] border-[#292017]"
+            >
+              <option value="ALL">Todos los Estados</option>
+              <option value="active">Activos</option>
+              <option value="suspended">Suspendidos</option>
+              <option value="pending_verification">Pendientes</option>
+            </Select>
+
+            <Select
+              value={planFilter}
+              onChange={(e) => setPlanFilter(e.target.value)}
+              className="w-36 text-xs bg-[#19140f] border-[#292017]"
+            >
+              <option value="ALL">Todos los Planes</option>
+              <option value="free_trial">Free Trial</option>
+              <option value="business">Business</option>
+              <option value="enterprise">Enterprise</option>
+            </Select>
+          </div>
         </CardContent>
       </Card>
 
-      {/* Modal: Administrative Action Confirmation */}
+      {/* Clients Table */}
+      <Card className="bg-[#120f0b] border-[#292017]">
+        <CardContent className="p-0 overflow-x-auto">
+          {isLoading ? (
+            <div className="p-12 text-center text-xs font-mono text-slate-500">
+              Consultando comerciantes desde la base de datos de Neon...
+            </div>
+          ) : !clients.length ? (
+            <div className="p-12 text-center text-xs font-mono text-slate-500">
+              No se encontraron comerciantes que coincidan con los filtros activos.
+            </div>
+          ) : (
+            <table className="w-full text-xs font-mono text-left">
+              <thead className="bg-[#18130e] text-slate-400 uppercase text-[10px] tracking-wider border-b border-[#292017]">
+                <tr>
+                  <th className="p-3.5">Comerciante / ID</th>
+                  <th className="p-3.5">País / Workspace</th>
+                  <th className="p-3.5">Plan Activo</th>
+                  <th className="p-3.5">Operaciones</th>
+                  <th className="p-3.5">Estado</th>
+                  <th className="p-3.5 text-right">Acción Administrativa</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[#211a13] text-slate-200">
+                {clients.map((client) => (
+                  <tr key={client.id} className="hover:bg-[#1a140f] transition-colors">
+                    <td className="p-3.5">
+                      <div className="font-bold text-white">{client.name}</div>
+                      <div className="text-[11px] text-slate-400">{client.email}</div>
+                      <div className="text-[9px] text-slate-600 truncate max-w-xs">{client.id}</div>
+                    </td>
+                    <td className="p-3.5">
+                      <div className="flex items-center gap-1.5 font-bold text-white">
+                        <span className="w-5 h-5 rounded bg-[#1e1711] flex items-center justify-center text-[10px] border border-[#2b2118]">
+                          {client.country}
+                        </span>
+                        <span className="truncate max-w-[150px]">{client.workspaceName}</span>
+                      </div>
+                      <div className="text-[10px] text-slate-500 mt-0.5">
+                        Registrado: {new Date(client.registeredAt).toLocaleDateString()}
+                      </div>
+                    </td>
+                    <td className="p-3.5">
+                      <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                        client.planCode === "enterprise"
+                          ? "bg-cyan-500/10 text-cyan-400 border border-cyan-500/30"
+                          : client.planCode === "business"
+                          ? "bg-amber-500/10 text-amber-400 border border-amber-500/30"
+                          : "bg-emerald-500/10 text-emerald-400 border border-emerald-500/30"
+                      }`}>
+                        {client.planName}
+                      </span>
+                    </td>
+                    <td className="p-3.5">
+                      <span className="font-bold text-white">{client.operationsCount}</span>
+                      <span className="text-[10px] text-slate-500 block">registros P2P</span>
+                    </td>
+                    <td className="p-3.5">
+                      <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                        client.status === "active"
+                          ? "bg-emerald-500/10 text-emerald-400"
+                          : client.status === "suspended"
+                          ? "bg-rose-500/10 text-rose-400"
+                          : "bg-amber-500/10 text-amber-400"
+                      }`}>
+                        {client.status.toUpperCase()}
+                      </span>
+                      {client.statusReason && (
+                        <span className="text-[9px] text-rose-300 block mt-1 truncate max-w-xs" title={client.statusReason}>
+                          Motivo: {client.statusReason}
+                        </span>
+                      )}
+                    </td>
+                    <td className="p-3.5 text-right">
+                      {client.status === "suspended" ? (
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          className="text-[11px] border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/10"
+                          onClick={() => handleOpenActionModal(client, "reactivate")}
+                        >
+                          <UserCheck className="w-3.5 h-3.5 mr-1" />
+                          Reactivar
+                        </Button>
+                      ) : (
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          className="text-[11px] border-rose-500/40 text-rose-400 hover:bg-rose-500/10"
+                          onClick={() => handleOpenActionModal(client, "suspend")}
+                        >
+                          <UserX className="w-3.5 h-3.5 mr-1" />
+                          Suspender
+                        </Button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Suspension / Reactivation Modal */}
       <Dialog
         isOpen={!!selectedClient}
         onClose={() => setSelectedClient(null)}
         title={
           actionType === "suspend"
-            ? `Suspender Cuenta: ${selectedClient?.name}`
-            : `Reactivar Cuenta: ${selectedClient?.name}`
+            ? `Suspender Acceso: ${selectedClient?.name}`
+            : `Reactivar Acceso: ${selectedClient?.name}`
         }
-        description="Esta acción afectará el acceso del comerciante y quedará registrada en auditoría."
+        description="Gestión del estado de cuenta de comerciante"
       >
-        {selectedClient && (
-          <form onSubmit={handleConfirmAction} className="space-y-4">
-            <div className="p-3 rounded-lg bg-[#0e0b08] border border-[#2b2118] text-xs font-mono space-y-1.5">
-              <div className="flex justify-between text-slate-400">
-                <span>Cliente:</span>
-                <span className="text-white font-bold">{selectedClient.name}</span>
-              </div>
-              <div className="flex justify-between text-slate-400">
-                <span>Correo:</span>
-                <span className="text-white">{selectedClient.email}</span>
-              </div>
-              <div className="flex justify-between text-slate-400">
-                <span>Plan:</span>
-                <span className="text-amber-300">{selectedClient.plan.toUpperCase()}</span>
-              </div>
-            </div>
-
+        <form onSubmit={handleConfirmAction} className="space-y-4">
+          <div
+            className={`p-3 rounded-lg border text-xs ${
+              actionType === "suspend"
+                ? "bg-rose-500/10 border-rose-500/30 text-rose-200"
+                : "bg-emerald-500/10 border-emerald-500/30 text-emerald-200"
+            }`}
+          >
             {actionType === "suspend" ? (
-              <div className="space-y-2">
-                <Input
-                  label="Motivo Administrativo Obligatorio"
-                  placeholder="Detalla la razón de la suspensión (ej. actividad irregular, solicitud del titular)"
-                  value={adminReason}
-                  onChange={(e) => setAdminReason(e.target.value)}
-                  required
-                />
-                <p className="text-[11px] text-slate-400">
-                  ⚠️ La suspensión revoca las sesiones del usuario y bloquea su acceso al área privada. Los datos históricos y operaciones del comerciante se conservan intactos.
+              <div className="space-y-1">
+                <strong>ATENCIÓN — SUSPENSIÓN ADMINISTRATIVA:</strong>
+                <p className="text-[11px] opacity-90">
+                  Al suspender la cuenta, el usuario perderá acceso inmediato a la aplicación privada (/app). Esta acción quedará sellada permanentemente en la bitácora de auditoría inmutable.
                 </p>
               </div>
             ) : (
-              <p className="text-xs text-slate-300">
-                Al reactivar la cuenta, el comerciante podrá iniciar sesión nuevamente. Su historial y configuraciones permanecen intactos.
-              </p>
+              <div className="space-y-1">
+                <strong>REACTIVACIÓN DE CUENTA:</strong>
+                <p className="text-[11px] opacity-90">
+                  El comerciante recuperará el acceso regular a su espacio de trabajo y operaciones.
+                </p>
+              </div>
             )}
+          </div>
 
-            <div className="flex justify-end gap-3 pt-4 border-t border-[#261f18]">
-              <Button
-                type="button"
-                variant="ghost"
-                onClick={() => setSelectedClient(null)}
-              >
-                Cancelar
-              </Button>
-              <Button
-                type="submit"
-                variant={actionType === "suspend" ? "danger" : "primary"}
-              >
-                {actionType === "suspend" ? "Confirmar Suspensión" : "Confirmar Reactivación"}
-              </Button>
+          <div className="p-3 rounded-lg bg-[#0c0e14] border border-[#1e2433] text-xs font-mono space-y-1">
+            <div className="flex justify-between text-slate-400">
+              <span>Comerciante:</span>
+              <span className="text-white font-bold">{selectedClient?.name}</span>
             </div>
-          </form>
-        )}
+            <div className="flex justify-between text-slate-400">
+              <span>Correo electrónico:</span>
+              <span className="text-white">{selectedClient?.email}</span>
+            </div>
+            <div className="flex justify-between text-slate-400">
+              <span>Workspace:</span>
+              <span className="text-white">{selectedClient?.workspaceName}</span>
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-xs font-mono text-slate-400 block font-semibold">
+              Motivo Administrativo Obligatorio (Auditable):
+            </label>
+            <textarea
+              required
+              rows={3}
+              value={adminReason}
+              onChange={(e) => setAdminReason(e.target.value)}
+              placeholder={
+                actionType === "suspend"
+                  ? "Indica la razón obligatoria de suspensión (ej. Incumplimiento de términos, reporte de fraude, verificación pendiente)..."
+                  : "Indica el motivo de la reactivación (ej. Documentación aclarada, verificación completada exitosamente)..."
+              }
+              className="w-full text-xs font-mono bg-[#14100c] border border-[#2b2118] rounded-lg p-2.5 text-white placeholder:text-slate-600 focus:outline-none focus:border-amber-400"
+            />
+            <p className="text-[10px] text-slate-500">
+              Mínimo 5 caracteres. Este texto será guardado en <code>platform_admin_audit_logs</code>.
+            </p>
+          </div>
+
+          <div className="flex justify-end gap-2 pt-2">
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => setSelectedClient(null)}
+              disabled={isSubmittingAction}
+            >
+              Cancelar
+            </Button>
+            <Button
+              type="submit"
+              variant={actionType === "suspend" ? "danger" : "primary"}
+              size="sm"
+              disabled={isSubmittingAction || adminReason.trim().length < 5}
+              className={actionType === "suspend" ? "bg-rose-600 hover:bg-rose-500 text-white" : ""}
+            >
+              {isSubmittingAction
+                ? "Guardando..."
+                : actionType === "suspend"
+                ? "Confirmar Suspensión"
+                : "Confirmar Reactivación"}
+            </Button>
+          </div>
+        </form>
       </Dialog>
     </div>
   );

@@ -1,10 +1,16 @@
 import { MasterSidebar } from "@/components/layout/MasterSidebar";
+import { requirePlatformOwner } from "@/lib/auth/session";
 
-export default function MasterLayout({
+export default async function MasterLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  // Validación estricta en el servidor del rol global 'platform_owner'
+  // 1. Si no hay sesión autenticada -> redirige inmediatamente a /login
+  // 2. Si el usuario es un comerciante estándar -> redirige a /app
+  const owner = await requirePlatformOwner();
+
   return (
     <div className="flex min-h-screen bg-[#090705] text-slate-100">
       <MasterSidebar />
@@ -16,8 +22,13 @@ export default function MasterLayout({
             </span>
           </div>
 
-          <div className="text-xs font-mono text-slate-400">
-            Ambiente: <strong className="text-white">DEMO_PORTFOLIO</strong>
+          <div className="flex items-center gap-4 text-xs font-mono text-slate-400">
+            <span className="hidden sm:inline-block text-amber-300/80">
+              Propietario: <strong className="text-white">{owner.email}</strong>
+            </span>
+            <span>
+              Ambiente: <strong className="text-white">DEMO_PORTFOLIO</strong>
+            </span>
           </div>
         </header>
 

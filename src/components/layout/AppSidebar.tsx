@@ -1,5 +1,6 @@
 "use client";
 
+import * as React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -15,6 +16,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { signOut } from "@/lib/auth/client";
+import { fetchWorkspaceSubscriptionAction } from "@/app/actions/plans";
 
 const NAV_ITEMS = [
   {
@@ -53,6 +55,25 @@ const NAV_ITEMS = [
 
 export function AppSidebar() {
   const pathname = usePathname();
+  const [subData, setSubData] = React.useState<any>(null);
+
+  React.useEffect(() => {
+    fetchWorkspaceSubscriptionAction()
+      .then((res) => setSubData(res.subscription))
+      .catch((err) => console.error("Error loading sidebar subscription:", err));
+  }, [pathname]);
+
+  const isExpired = subData?.isExpired;
+  const planCode = subData?.planCode || "free_trial";
+  const remainingDays = subData?.remainingDays ?? 7;
+  const isEnterprise = planCode === "enterprise";
+  const isBusiness = planCode === "business";
+
+  const progressPercent = isExpired
+    ? 0
+    : planCode === "free_trial"
+    ? Math.min(100, Math.max(10, Math.round((remainingDays / 7) * 100)))
+    : 100;
 
   return (
     <aside className="w-64 border-r border-[#1a1f2c] bg-[#090b10] flex flex-col h-screen sticky top-0 shrink-0">
@@ -70,18 +91,68 @@ export function AppSidebar() {
 
       {/* Trial Status Card */}
       <div className="p-4">
-        <div className="p-3 rounded-xl bg-[#12151e] border border-[#1f2637] space-y-2">
+        <div
+          className={`p-3 rounded-xl border space-y-2 transition-all ${
+            isExpired
+              ? "bg-rose-950/20 border-rose-500/40"
+              : isEnterprise
+              ? "bg-cyan-950/20 border-cyan-500/40"
+              : "bg-[#12151e] border-[#1f2637]"
+          }`}
+        >
           <div className="flex items-center justify-between text-[11px] font-mono">
             <span className="text-slate-400">PLAN ACTIVO</span>
-            <span className="text-[#00ff66] font-bold">FREE TRIAL</span>
+            <span
+              className={`font-bold ${
+                isExpired
+                  ? "text-rose-400"
+                  : isEnterprise
+                  ? "text-[#00f0ff]"
+                  : "text-[#00ff66]"
+              }`}
+            >
+              {isExpired
+                ? "EXPIRADO"
+                : isEnterprise
+                ? "ENTERPRISE"
+                : isBusiness
+                ? "BUSINESS"
+                : "FREE TRIAL"}
+            </span>
           </div>
+
           <div className="w-full bg-[#1e2333] h-1.5 rounded-full overflow-hidden">
-            <div className="bg-[#00ff66] h-full rounded-full w-[70%]" />
+            <div
+              className={`h-full rounded-full transition-all duration-500 ${
+                isExpired
+                  ? "bg-rose-500 w-full"
+                  : isEnterprise
+                  ? "bg-[#00f0ff]"
+                  : "bg-[#00ff66]"
+              }`}
+              style={{ width: `${progressPercent}%` }}
+            />
           </div>
+
           <div className="flex justify-between items-center text-[10px] text-slate-400">
-            <span>5 días restantes</span>
-            <Link href="/app/plan" className="text-[#00ff66] hover:underline font-mono">
-              Mejorar &rarr;
+            <span>
+              {isExpired
+                ? "Prueba finalizada"
+                : planCode === "free_trial"
+                ? `${remainingDays} días restantes`
+                : "Vigente (30d)"}
+            </span>
+            <Link
+              href="/app/plan"
+              className={`font-mono hover:underline ${
+                isExpired
+                  ? "text-rose-400 font-bold"
+                  : isEnterprise
+                  ? "text-cyan-400"
+                  : "text-[#00ff66]"
+              }`}
+            >
+              {isExpired ? "Activar Plan &rarr;" : "Mejorar &rarr;"}
             </Link>
           </div>
         </div>

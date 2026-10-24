@@ -17,6 +17,11 @@ import {
   upsertCommissionProfile,
   updateWorkspaceSettings,
 } from "@/lib/services/catalogs-service";
+import {
+  getWorkspaceCommissionProfilesWithDefaults,
+  resolveCommissionRule,
+  ResolveCommissionParams,
+} from "@/lib/services/commission-engine";
 
 /**
  * Obtiene el ID del workspace autenticado de forma segura.
@@ -149,3 +154,14 @@ export async function saveWorkspaceSettingsAction(data: {
   revalidatePath("/app");
   return settings;
 }
+
+export async function fetchCommissionProfilesSummaryAction() {
+  const workspaceId = await resolveWorkspaceId();
+  return getWorkspaceCommissionProfilesWithDefaults(workspaceId);
+}
+
+export async function calculateCommissionFeeAction(params: ResolveCommissionParams) {
+  const workspaceId = await resolveWorkspaceId();
+  return resolveCommissionRule(workspaceId, params);
+}
+

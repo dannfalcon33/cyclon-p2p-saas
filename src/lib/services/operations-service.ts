@@ -1,6 +1,8 @@
 import { db } from "@/lib/db";
 import * as schema from "@/lib/db/schema";
 import { eq, and, desc, sql, ilike, or, gte, lte } from "drizzle-orm";
+import { resolveCommissionRule, CommissionRuleSnapshot } from "./commission-engine";
+import { canWorkspaceCreateOperations } from "./plan-service";
 
 export interface CreateOperationInput {
   countryCode: string;
@@ -67,6 +69,12 @@ export function calculateUnitRate(fiatAmount: string | number, assetAmount: stri
  * 1. Crear Operación P2P con snapshot inmutable y tasa calculada en servidor
  */
 export async function createOperation(workspaceId: string, input: CreateOperationInput) {
+  // 0. Validar permisos del plan/suscripción activa
+  const permission = await canWorkspaceCreateOperations(workspaceId);
+  if (!permission.allowed) {
+    throw new Error(permission.reason || "Operación no permitida según el estado de tu suscripción.");
+  }
+
   const assetNum = typeof input.assetAmount === "number" ? input.assetAmount : parseFloat(input.assetAmount);
   const fiatNum = typeof input.fiatAmount === "number" ? input.fiatAmount : parseFloat(input.fiatAmount);
 
@@ -108,33 +116,31 @@ export async function createOperation(workspaceId: string, input: CreateOperatio
     }
   }
 
-  // 4. Snapshot inmutable de Regla de Comisión aplicada
-  const profile = await db.query.commissionProfiles.findFirst({
-    where: and(
-      eq(schema.commissionProfiles.workspaceId, workspaceId),
-      eq(schema.commissionProfiles.countryCode, input.countryCode),
-      or(
-        eq(schema.commissionProfiles.operationSide, input.operationSide),
-        eq(schema.commissionProfiles.operationSide, "all")
-      )
-    ),
-    orderBy: [desc(schema.commissionProfiles.priority)],
+  // 4. Snapshot inmutable y resolución determinista de regla de comisión
+  const resolvedRule = await resolveCommissionRule(workspaceId, {
+    countryCode: input.countryCode,
+    fiatCurrency: input.fiatCurrency,
+    operationSide: input.operationSide,
+    exchangeCode: input.exchangeCode,
+    paymentMethodId: validPaymentMethodId || undefined,
+    fiatAmount: fiatNum,
   });
 
-  const commissionRuleSnapshot = profile
-    ? {
-        ruleId: profile.id,
-        countryCode: profile.countryCode,
-        operationSide: profile.operationSide,
-        percentage: profile.percentage,
-        fixedFee: profile.fixedFee,
-        feeType: profile.feeType,
-        appliedAt: new Date().toISOString(),
-      }
-    : {
-        type: "manual_override",
-        appliedAt: new Date().toISOString(),
-      };
+  const finalMerchantFee =
+    input.merchantFee !== undefined && input.merchantFee !== null
+      ? Number(input.merchantFee).toFixed(2)
+      : resolvedRule.calculatedFee;
+
+  const isOverride =
+    input.merchantFee !== undefined &&
+    input.merchantFee !== null &&
+    Number(input.merchantFee).toFixed(2) !== resolvedRule.calculatedFee;
+
+  const commissionRuleSnapshot: CommissionRuleSnapshot = {
+    ...resolvedRule.snapshot,
+    calculatedFee: finalMerchantFee,
+    isOverride,
+  };
 
   const occurredAtDate = input.occurredAt
     ? typeof input.occurredAt === "string"
@@ -155,7 +161,7 @@ export async function createOperation(workspaceId: string, input: CreateOperatio
       fiatCurrency: input.fiatCurrency,
       fiatAmount: fiatNum.toFixed(2),
       unitRate,
-      merchantFee: input.merchantFee ? Number(input.merchantFee).toFixed(2) : "0.00",
+      merchantFee: finalMerchantFee,
       exchangeFee: input.exchangeFee ? Number(input.exchangeFee).toFixed(2) : "0.00",
       paymentCharge: input.paymentCharge ? Number(input.paymentCharge).toFixed(2) : "0.00",
       commissionRuleSnapshot,

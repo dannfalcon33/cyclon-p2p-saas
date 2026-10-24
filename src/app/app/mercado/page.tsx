@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -9,12 +10,37 @@ import {
   RefreshCw,
   ExternalLink,
   Newspaper,
+  Lock,
+  ArrowRight,
+  ShieldAlert,
 } from "lucide-react";
+import { fetchWorkspaceSubscriptionAction } from "@/app/actions/plans";
 
 export default function EnterpriseMarketPage() {
+  const [subscriptionData, setSubscriptionData] = React.useState<any>(null);
+  const [isCheckingAccess, setIsCheckingAccess] = React.useState(true);
   const [selectedAsset, setSelectedAsset] = React.useState<"BTC" | "ETH" | "SOL" | "BNB">("BTC");
   const [isRefreshing, setIsRefreshing] = React.useState(false);
   const [lastUpdated, setLastUpdated] = React.useState("Hoy a las 10:30 AM");
+
+  React.useEffect(() => {
+    async function checkAccess() {
+      try {
+        setIsCheckingAccess(true);
+        const res = await fetchWorkspaceSubscriptionAction();
+        setSubscriptionData(res);
+      } catch (err) {
+        console.error("Error al verificar plan para módulo Enterprise:", err);
+      } finally {
+        setIsCheckingAccess(false);
+      }
+    }
+    checkAccess();
+  }, []);
+
+  const hasEnterprise =
+    subscriptionData?.subscription?.features?.includes("enterprise_market_charts") ||
+    subscriptionData?.subscription?.planCode === "enterprise";
 
   const handleRefresh = () => {
     setIsRefreshing(true);
@@ -86,6 +112,56 @@ export default function EnterpriseMarketPage() {
       category: "Mercados",
     },
   ];
+
+  if (isCheckingAccess) {
+    return (
+      <div className="p-12 text-center text-xs font-mono text-slate-500">
+        Verificando capacidades Enterprise de tu suscripción en Neon PostgreSQL...
+      </div>
+    );
+  }
+
+  if (!hasEnterprise) {
+    const currentPlanName = subscriptionData?.subscription?.planName || "Plan Actual";
+    return (
+      <div className="space-y-6 max-w-4xl mx-auto py-8">
+        <div className="p-8 rounded-2xl bg-gradient-to-b from-[#10141f] to-[#0c0e15] border border-cyan-500/30 text-center space-y-6 shadow-[0_0_50px_rgba(0,240,255,0.08)]">
+          <div className="w-16 h-16 rounded-2xl bg-cyan-500/10 border border-cyan-500/40 flex items-center justify-center mx-auto text-cyan-400">
+            <Lock className="w-8 h-8" />
+          </div>
+
+          <div className="space-y-2 max-w-lg mx-auto">
+            <Badge variant="cyber">FUNCIONALIDAD ENTERPRISE</Badge>
+            <h2 className="text-2xl font-bold tracking-tight text-white">
+              Mercado Cripto y Noticias en Tiempo Real
+            </h2>
+            <p className="text-xs text-slate-400 leading-relaxed">
+              El panel de cotizaciones de activos en tiempo real (BTC, ETH, SOL, BNB), análisis de spreads y agregador curado de noticias especializadas para arbitraje P2P es exclusivo para el plan <strong>Enterprise</strong>.
+            </p>
+          </div>
+
+          <div className="p-4 rounded-xl bg-[#090b10] border border-[#1a1f2b] max-w-md mx-auto text-xs font-mono flex items-center justify-between">
+            <span className="text-slate-400">Tu plan actual:</span>
+            <span className="text-white font-bold">{currentPlanName}</span>
+          </div>
+
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
+            <Link href="/app/plan">
+              <Button variant="primary" className="text-xs">
+                Ir a Mi Plan y Simular Activación Enterprise ($79/mes)
+                <ArrowRight className="w-4 h-4 ml-1.5" />
+              </Button>
+            </Link>
+            <Link href="/app">
+              <Button variant="ghost" className="text-xs text-slate-400 hover:text-white">
+                Volver al Dashboard
+              </Button>
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

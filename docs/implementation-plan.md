@@ -12,10 +12,10 @@ Este plan organiza el desarrollo secuencial del MVP mini-SaaS Cyclon P2P de acue
 - [x] **Fase 3: Autenticación, correo y espacios de trabajo (Better Auth)**
 - [x] **Fase 4: Catálogos globales y configuración privada por comerciante**
 - [x] **Fase 5: CRUD de operaciones P2P y validación server-side**
-- [ ] **Fase 6: Dashboard analítico, métricas y agregaciones sin mezcla de fiat**
-- [ ] **Fase 7: Motor de comisiones por país y exportaciones Excel (.xlsx)**
-- [ ] **Fase 8: Planes comerciales, prueba gratuita de 7 días y checkout simulado**
-- [ ] **Fase 9: Panel Master del propietario (`platform_owner`), promociones y auditoría**
+- [x] **Fase 6: Dashboard analítico, métricas y agregaciones sin mezcla de fiat**
+- [x] **Fase 7: Motor de comisiones por país y exportaciones Excel (.xlsx)**
+- [x] **Fase 8: Planes comerciales, prueba gratuita de 7 días y checkout simulado**
+- [x] **Fase 9: Panel Master del propietario (`platform_owner`), promociones y auditoría**
 - [ ] **Fase 10: Módulo de mercado y noticias Enterprise (CoinGecko / CryptoCompare)**
 - [ ] **Fase 11: QA exhaustivo, seguridad, tests y pulido de experiencia**
 - [ ] **Fase 12: Despliegue en Vercel + Neon y entrega de documentación final**
@@ -52,21 +52,25 @@ Este plan organiza el desarrollo secuencial del MVP mini-SaaS Cyclon P2P de acue
 - **Entregables:** Servicio `operations-service.ts`, Server Actions `operations.ts` con validación Zod, formulario conectado `/app/operaciones/nueva`, listado en vivo con paginación y filtros `/app/operaciones`, detalle y cancelación `/app/operaciones/[id]`, suite automatizada `tests/phase5-operations-test.ts`, ADR-0006.
 - **Puerta de salida:** Operaciones completadas, pendientes y canceladas registradas y aisladas correctamente al 100% en Neon PostgreSQL; entradas inválidas rechazadas en servidor; snapshots inmutables preservados.
 
-### Fase 6: Dashboard y Métricas
+### Fase 6: Dashboard y Métricas (Completada)
 - **Objetivo:** Tarjetas analíticas, gráficos de volumen por criptoactivo, tasas promedio y volumen fiat agrupado estrictamente por divisa (sin suma cruzada).
-- **Puerta de salida:** Totales calculados en servidor coincidentes con datos de prueba.
+- **Entregables:** Servicio `metrics-service.ts`, Server Action `metrics.ts`, Dashboard interactivo en vivo `/app/page.tsx` con selectores de período y divisa fiat activa, protección de navegación en borde Next.js 16 (`proxy.ts`), layouts con validación de sesión de servidor y suite automatizada `tests/phase6-dashboard-test.ts`, ADR-0007.
+- **Puerta de salida:** Totales calculados en servidor coincidentes al 100% con datos de prueba; monedas fiat estrictamente aisladas sin mezclas cruzadas; tasas promedio ponderadas exactas; acceso por URL directa sin sesión o con rol indebido bloqueado y redirigido.
 
-### Fase 7: Comisiones por País y Exportaciones Excel
-- **Objetivo:** Perfiles configurables por país y generador `.xlsx` multihop sanitizado contra formula injection.
-- **Puerta de salida:** Cálculos de comisiones inmutables en historial y descarga de Excel probada.
+### Fase 7: Comisiones por País y Exportaciones Excel (Completada)
+- **Objetivo:** Perfiles configurables por país, cálculo de comisiones determinista con snapshots inmutables y generador de libros `.xlsx` multihop con celdas numéricas nativas y sanitización estricta contra inyección de fórmulas.
+- **Entregables:** Servicio `commission-engine.ts`, servicio `excel-export-service.ts`, Route Handler protegido `/api/export/excel`, UI de exportación interactiva con filtros en `operaciones/page.tsx`, cálculo y snapshot de comisiones en `operations-service.ts`, test suite automatizada `tests/phase7-commissions-excel-test.ts`, ADR-0008.
+- **Puerta de salida:** Cálculos de comisiones inmutables en historial probados; resolución jerárquica determinista verificada; 4 hojas Excel nativas (`Operaciones`, `Resumen por Moneda`, `Comisiones`, `Parámetros del Reporte`) con formato numérico y sin texto concatenado; sanitización contra inyección de fórmulas probada al 100%; aislamiento multinquilino verificado al 100%.
 
-### Fase 8: Planes y Checkout Demo
-- **Objetivo:** Servicio centralizado de capacidades (`hasFeature`), expiración de trial con retención de datos y pasarela `DemoBillingProvider` con marca `simulated=true`.
-- **Puerta de salida:** Matriz de permisos probada en servidor y checkout demo funcional.
+### Fase 8: Planes y Checkout Demo (Completada)
+- **Objetivo:** Servicio centralizado de capacidades (`hasFeature`, `canWorkspaceCreateOperations`), expiración de prueba gratuita con política inmutable de retención de datos, motor de cupones de promoción y pasarela simulada `DemoBillingProvider` con marca explícita `is_simulated = true`.
+- **Entregables:** Servicio `plan-service.ts`, Server Actions `plans.ts`, vista reactiva `/app/plan` con modal de simulación de checkout y selector de resultado (`approved`, `pending`, `failed`), paywall Enterprise en `/app/mercado`, bloqueo de creación de operaciones al expirar trial en `operations-service.ts` y `/app/operaciones/nueva`, widget dinámico en `AppSidebar.tsx`, suite automatizada `tests/phase8-plans-billing-test.ts`, ADR-0009.
+- **Puerta de salida:** Matriz de permisos probada en servidor; retención de datos validada (lectura e informe Excel preservados tras expirar); mutaciones no autorizadas bloqueadas en servidor; pasarela demo con outcomes auditados y marca `is_simulated = true`; aislamiento multinquilino verificado al 100%.
 
-### Fase 9: Panel Master del Propietario
-- **Objetivo:** Consola `/master` protegida por `platform_owner`, métricas globales, gestión de clientes (suspensión con motivo), promociones demo y registro de auditoría.
-- **Puerta de salida:** Acceso denegado a comerciantes normales y trazabilidad administrativa probada.
+### Fase 9: Panel Master del Propietario (Completada)
+- **Objetivo:** Consola `/master` protegida con rol `platform_owner`, métricas globales de negocio con separación contable estricta ($0.00 ingresos reales vs MRR demo estimado), gestión de clientes con suspensión/reactivación por motivo obligatorio, CRUD de cupones y bitácora de auditoría inmutable append-only.
+- **Entregables:** Servicio `master-service.ts`, Server Actions `master.ts`, vista `/master` conectada con KPIs y breakdown de planes, directorio interactivo `/master/clientes` con modal de suspensión/reactivación, consola de cupones `/master/promociones`, bitácora `/master/auditoria` conectada a `platform_admin_audit_logs`, suite automatizada `tests/phase9-master-panel-test.ts`, ADR-0010.
+- **Puerta de salida:** Acceso a `/master` denegado y redirigido para comerciantes regulares; separación estricta de ingresos reales ($0.00) verificada; suspensión con bloqueo de acceso y motivo obligatorio validada; trazabilidad de auditoría append-only probada al 100%.
 
 ### Fase 10: Mercado y Noticias Enterprise
 - **Objetivo:** Gráficos de BTC, ETH, SOL y BNB, noticias seleccionadas y fallback limpio en caso de API no disponible.

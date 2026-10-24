@@ -514,3 +514,14 @@ export const p2pOperationsRelations = relations(p2pOperations, ({ one }) => ({
     references: [paymentMethods.id],
   }),
 }));
+
+export const platformAdminAuditLogsRelations = relations(
+  platformAdminAuditLogs,
+  ({ one }) => ({
+    actor: one(users, {
+      fields: [platformAdminAuditLogs.actorId],
+      references: [users.id],
+    }),
+  })
+);
+

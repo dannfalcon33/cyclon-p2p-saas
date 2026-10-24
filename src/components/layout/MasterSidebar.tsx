@@ -89,8 +89,8 @@ export function MasterSidebar() {
         })}
       </nav>
 
-      {/* Return to Merchant App */}
-      <div className="p-4 border-t border-[#261f18]">
+      {/* Return to Merchant App & Logout */}
+      <div className="p-4 border-t border-[#261f18] space-y-2">
         <Link
           href="/app"
           className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-mono text-slate-400 hover:text-white hover:bg-[#17120e] transition-colors"
@@ -98,6 +98,18 @@ export function MasterSidebar() {
           <ArrowLeft className="w-3.5 h-3.5" />
           <span>Volver al Dashboard</span>
         </Link>
+
+        <button
+          onClick={async () => {
+            const { signOut } = await import("@/lib/auth/client");
+            await signOut();
+            window.location.href = "/login";
+          }}
+          className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs text-amber-400/80 hover:text-red-400 hover:bg-red-500/10 transition-colors w-full cursor-pointer text-left"
+        >
+          <span className="w-3.5 h-3.5 font-bold">&times;</span>
+          <span>Cerrar Sesión</span>
+        </button>
       </div>
     </aside>
   );

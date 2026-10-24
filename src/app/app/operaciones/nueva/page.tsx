@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { fetchFullConfigurationAction } from "@/app/actions/catalogs";
 import { createOperationAction } from "@/app/actions/operations";
+import { fetchWorkspaceSubscriptionAction } from "@/app/actions/plans";
 
 export default function NewOperationPage() {
   const router = useRouter();
@@ -63,13 +64,22 @@ export default function NewOperationPage() {
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [errorMessage, setErrorMessage] = React.useState<string | null>(null);
   const [successMessage, setSuccessMessage] = React.useState<string | null>(null);
+  const [isPlanExpired, setIsPlanExpired] = React.useState(false);
 
   // Load catalogs on mount
   React.useEffect(() => {
     async function loadCatalogs() {
       try {
         setIsLoading(true);
-        const config = await fetchFullConfigurationAction();
+        const [config, subData] = await Promise.all([
+          fetchFullConfigurationAction(),
+          fetchWorkspaceSubscriptionAction().catch(() => null),
+        ]);
+
+        if (subData?.subscription?.isExpired) {
+          setIsPlanExpired(true);
+        }
+
         setCountries(config.countries || []);
         setFiatCurrencies(config.fiatCurrencies || []);
         setCryptoAssets(config.cryptoAssets || []);
@@ -236,6 +246,19 @@ export default function NewOperationPage() {
           </Button>
         </Link>
       </div>
+
+      {isPlanExpired && (
+        <div className="p-4 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+          <div className="text-xs">
+            <strong>Prueba gratuita finalizada:</strong> Para registrar nuevas operaciones P2P debes activar un plan Business o Enterprise en modo demo. Conservas acceso total para consultar y exportar tu historial.
+          </div>
+          <Link href="/app/plan">
+            <Button variant="primary" size="sm" className="shrink-0 text-xs bg-rose-600 hover:bg-rose-500 text-white">
+              Activar Plan &rarr;
+            </Button>
+          </Link>
+        </div>
+      )}
 
       {errorMessage && (
         <Alert variant="error" title="Error de Validación">
@@ -598,10 +621,11 @@ export default function NewOperationPage() {
               variant="primary"
               size="lg"
               isLoading={isSubmitting}
-              className="px-8"
+              disabled={isSubmitting || isPlanExpired}
+              className={`px-8 ${isPlanExpired ? "opacity-50 cursor-not-allowed bg-slate-700 text-slate-400" : ""}`}
             >
               <Save className="w-4 h-4 mr-2" />
-              Guardar Operación
+              {isPlanExpired ? "Prueba Finalizada (Requiere Plan)" : "Guardar Operación"}
             </Button>
           </div>
         </form>
