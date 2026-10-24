@@ -18,10 +18,15 @@ import {
   Sliders,
   Settings,
   HelpCircle,
+  Zap,
+  RefreshCw,
+  Sparkles,
 } from "lucide-react";
 import { fetchFullConfigurationAction } from "@/app/actions/catalogs";
 import { createOperationAction } from "@/app/actions/operations";
 import { fetchWorkspaceSubscriptionAction } from "@/app/actions/plans";
+import { fetchMultiExchangeP2PAction } from "@/app/actions/multi-exchange";
+import type { MultiExchangeP2PComparison } from "@/lib/services/multi-exchange-service";
 
 export default function NewOperationPage() {
   const router = useRouter();
@@ -48,6 +53,11 @@ export default function NewOperationPage() {
   const [cryptoAmount, setCryptoAmount] = React.useState("");
   const [fiatAmount, setFiatAmount] = React.useState("");
 
+  // Multi-Exchange P2P Real-Time Benchmark State
+  const [multiP2PData, setMultiP2PData] = React.useState<MultiExchangeP2PComparison | null>(null);
+  const [selectedP2PExchange, setSelectedP2PExchange] = React.useState<"binance" | "bybit">("binance");
+  const [isLoadingRates, setIsLoadingRates] = React.useState(false);
+
   const [selectedMethodId, setSelectedMethodId] = React.useState<string>("");
   const [selectedBankId, setSelectedBankId] = React.useState<string>("");
   const [customMethodName, setCustomMethodName] = React.useState("");
@@ -65,6 +75,54 @@ export default function NewOperationPage() {
   const [errorMessage, setErrorMessage] = React.useState<string | null>(null);
   const [successMessage, setSuccessMessage] = React.useState<string | null>(null);
   const [isPlanExpired, setIsPlanExpired] = React.useState(false);
+
+  // Sync active P2P exchange with form exchange selection
+  React.useEffect(() => {
+    if (exchange === "bybit") setSelectedP2PExchange("bybit");
+    else setSelectedP2PExchange("binance");
+  }, [exchange]);
+
+  // Load live Multi-Exchange P2P rates when fiat or asset changes
+  React.useEffect(() => {
+    if (asset !== "USDT") {
+      setMultiP2PData(null);
+      return;
+    }
+    let isMounted = true;
+    async function loadRates() {
+      try {
+        setIsLoadingRates(true);
+        const res = await fetchMultiExchangeP2PAction(fiatCurrency);
+        if (isMounted) {
+          setMultiP2PData(res);
+        }
+      } catch (err) {
+        console.warn("No se pudo cargar tasas multi-exchange P2P:", err);
+      } finally {
+        if (isMounted) setIsLoadingRates(false);
+      }
+    }
+    loadRates();
+    return () => {
+      isMounted = false;
+    };
+  }, [fiatCurrency, asset]);
+
+  // Apply exchange rate automatically to amounts
+  const applyExchangeRate = (rateToApply: number) => {
+    if (!rateToApply || rateToApply <= 0) return;
+    const c = parseFloat(cryptoAmount);
+    const f = parseFloat(fiatAmount);
+
+    if (!isNaN(c) && c > 0) {
+      setFiatAmount((c * rateToApply).toFixed(2));
+    } else if (!isNaN(f) && f > 0) {
+      setCryptoAmount((f / rateToApply).toFixed(2));
+    } else {
+      setCryptoAmount("100.00");
+      setFiatAmount((100 * rateToApply).toFixed(2));
+    }
+  };
 
   // Load catalogs on mount
   React.useEffect(() => {
@@ -386,6 +444,147 @@ export default function NewOperationPage() {
                   ))}
                 </Select>
               </div>
+
+              {/* Indicador Multi-Exchange P2P en Vivo (Binance, Bybit, OKX) con Selector y Ajuste */}
+              {asset === "USDT" && (
+                <div className="p-3.5 rounded-xl bg-[#0b0e14] border border-[#1e2535] space-y-3">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <Sparkles className="w-4 h-4 text-cyan-400" />
+                      <span className="text-xs font-mono font-bold text-slate-200">
+                        Tasas P2P Multi-Exchange en Vivo
+                      </span>
+                      <Badge variant="neutral" className="text-[10px] bg-cyan-500/10 text-cyan-400 border-cyan-500/30">
+                        Binance · Bybit (0-Key)
+                      </Badge>
+                    </div>
+
+                    {/* Selector de Exchange para cotización */}
+                    <div className="flex items-center gap-1 bg-[#141824] p-1 rounded-lg border border-[#1e2638]">
+                      {(["binance", "bybit"] as const).map((exKey) => (
+                        <button
+                          key={exKey}
+                          type="button"
+                          onClick={() => setSelectedP2PExchange(exKey)}
+                          className={`px-2.5 py-0.5 text-[11px] font-mono font-bold rounded capitalize transition-all cursor-pointer ${
+                            selectedP2PExchange === exKey
+                              ? "bg-cyan-500/25 text-cyan-300 border border-cyan-500/40"
+                              : "text-slate-400 hover:text-white"
+                          }`}
+                        >
+                          {exKey}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {isLoadingRates ? (
+                    <div className="text-xs font-mono text-slate-500 py-2 flex items-center gap-2">
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin text-cyan-400" />
+                      Consultando libros de órdenes P2P en tiempo real ({fiatCurrency})...
+                    </div>
+                  ) : multiP2PData ? (
+                    (() => {
+                      const curEx =
+                        multiP2PData.exchanges.find((e) => e.exchange === selectedP2PExchange) ||
+                        multiP2PData.exchanges[0];
+
+                      return (
+                        <div className="space-y-2.5">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                            {/* Promedio de Compra */}
+                            <div className={`p-2.5 rounded-lg border transition-all flex items-center justify-between ${
+                              side === "buy" ? "bg-emerald-500/10 border-emerald-500/40" : "bg-[#121622] border-[#1f2638]"
+                            }`}>
+                              <div>
+                                <div className="flex items-center gap-1.5">
+                                  <span className="text-[10px] font-mono text-slate-400 block uppercase">
+                                    Promedio Compra ({curEx.exchangeName})
+                                  </span>
+                                  {side === "buy" && (
+                                    <span className="text-[9px] font-mono px-1 rounded bg-emerald-500/20 text-emerald-400">
+                                      Sugerida
+                                    </span>
+                                  )}
+                                </div>
+                                <span className="text-sm font-mono font-bold text-emerald-400">
+                                  {curEx.buyAvg > 0
+                                    ? `${curEx.buyAvg.toLocaleString("en-US", { minimumFractionDigits: 2 })} ${fiatCurrency}`
+                                    : "Sin ofertas"}
+                                </span>
+                              </div>
+                              {curEx.buyAvg > 0 && (
+                                <Button
+                                  type="button"
+                                  variant="secondary"
+                                  size="sm"
+                                  onClick={() => applyExchangeRate(curEx.buyAvg)}
+                                  className="text-[11px] font-mono h-7 px-2.5 bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/30"
+                                >
+                                  <Zap className="w-3 h-3 mr-1 text-emerald-400" />
+                                  Aplicar Compra
+                                </Button>
+                              )}
+                            </div>
+
+                            {/* Promedio de Venta */}
+                            <div className={`p-2.5 rounded-lg border transition-all flex items-center justify-between ${
+                              side === "sell" ? "bg-blue-500/10 border-blue-500/40" : "bg-[#121622] border-[#1f2638]"
+                            }`}>
+                              <div>
+                                <div className="flex items-center gap-1.5">
+                                  <span className="text-[10px] font-mono text-slate-400 block uppercase">
+                                    Promedio Venta ({curEx.exchangeName})
+                                  </span>
+                                  {side === "sell" && (
+                                    <span className="text-[9px] font-mono px-1 rounded bg-blue-500/20 text-blue-400">
+                                      Sugerida
+                                    </span>
+                                  )}
+                                </div>
+                                <span className="text-sm font-mono font-bold text-blue-400">
+                                  {curEx.sellAvg > 0
+                                    ? `${curEx.sellAvg.toLocaleString("en-US", { minimumFractionDigits: 2 })} ${fiatCurrency}`
+                                    : "Sin ofertas"}
+                                </span>
+                              </div>
+                              {curEx.sellAvg > 0 && (
+                                <Button
+                                  type="button"
+                                  variant="secondary"
+                                  size="sm"
+                                  onClick={() => applyExchangeRate(curEx.sellAvg)}
+                                  className="text-[11px] font-mono h-7 px-2.5 bg-blue-500/15 hover:bg-blue-500/25 text-blue-300 border border-blue-500/30"
+                                >
+                                  <Zap className="w-3 h-3 mr-1 text-blue-400" />
+                                  Aplicar Venta
+                                </Button>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Oportunidad inter-exchange */}
+                          {multiP2PData.arbitrageSpreadPercent > 0 && (
+                            <div className="flex items-center justify-between text-[11px] font-mono px-3 py-1.5 rounded-lg bg-[#0e1622] border border-[#1c293d] text-slate-300">
+                              <span>
+                                Spread Interno {curEx.exchangeName}: <strong className="text-amber-300">+{curEx.spreadPercent}%</strong>
+                              </span>
+                              <span className="text-cyan-400 flex items-center gap-1">
+                                <Sparkles className="w-3 h-3 text-cyan-400" />
+                                Mejor Compra: <strong>{multiP2PData.bestBuy.exchangeName}</strong> | Mejor Venta: <strong>{multiP2PData.bestSell.exchangeName}</strong> (+{multiP2PData.arbitrageSpreadPercent}%)
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })()
+                  ) : (
+                    <div className="text-[11px] font-mono text-slate-400">
+                      Sin cotizaciones P2P directas para {fiatCurrency}. Puedes ingresar los montos de forma manual.
+                    </div>
+                  )}
+                </div>
+              )}
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
                 <Input

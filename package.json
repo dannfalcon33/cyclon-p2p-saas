@@ -19,6 +19,9 @@
     "test:phase7": "tsx tests/phase7-commissions-excel-test.ts",
     "test:phase8": "tsx tests/phase8-plans-billing-test.ts",
     "test:phase9": "tsx tests/phase9-master-panel-test.ts",
+    "test:phase10": "tsx tests/phase10-market-news-test.ts",
+    "test:multi-exchange": "tsx tests/multi-exchange-test.ts",
+    "test:binance": "tsx tests/binance-p2p-test.ts",
     "db:seed-demo": "tsx scripts/seed-demo-users-and-data.ts"
   },
   "dependencies": {

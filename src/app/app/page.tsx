@@ -24,12 +24,15 @@ import {
   TrendingUp,
   AlertCircle,
   ExternalLink,
+  Zap,
 } from "lucide-react";
 import { getDashboardMetricsAction } from "@/app/actions/metrics";
 import {
   MerchantDashboardMetrics,
   PeriodFilter,
 } from "@/lib/services/metrics-service";
+import { fetchBinanceUSDTMarketRatesAction } from "@/app/actions/market-rates";
+import type { BinanceP2PRateResult } from "@/lib/services/binance-p2p-service";
 
 const PERIODS: { id: PeriodFilter; label: string }[] = [
   { id: "today", label: "Hoy" },
@@ -45,6 +48,31 @@ export default function MerchantDashboardPage() {
   const [metrics, setMetrics] = React.useState<MerchantDashboardMetrics | null>(null);
   const [isLoading, setIsLoading] = React.useState<boolean>(true);
   const [error, setError] = React.useState<string | null>(null);
+
+  // Binance P2P Live Reference Benchmark
+  const [binanceRate, setBinanceRate] = React.useState<BinanceP2PRateResult | null>(null);
+  const [isLoadingBinance, setIsLoadingBinance] = React.useState<boolean>(false);
+
+  // Fetch Binance P2P rate whenever the active fiat changes
+  React.useEffect(() => {
+    const activeFiat = selectedFiat || metrics?.selectedFiatCurrency || "VES";
+    let isMounted = true;
+    async function loadBinanceBenchmark() {
+      try {
+        setIsLoadingBinance(true);
+        const res = await fetchBinanceUSDTMarketRatesAction(activeFiat);
+        if (isMounted) setBinanceRate(res);
+      } catch {
+        // silent fail
+      } finally {
+        if (isMounted) setIsLoadingBinance(false);
+      }
+    }
+    loadBinanceBenchmark();
+    return () => {
+      isMounted = false;
+    };
+  }, [selectedFiat, metrics?.selectedFiatCurrency]);
 
   const fetchMetrics = React.useCallback(async (p: PeriodFilter, fiat?: string) => {
     try {
@@ -337,66 +365,138 @@ export default function MerchantDashboardPage() {
         </Link>
       </div>
 
-      {/* 5. Tasas Promedio Ponderadas por Activo */}
-      {activeFiatMetric && Object.keys(activeFiatMetric.ratesByAsset).length > 0 && (
-        <Card className="bg-[#10131a] border-[#1e2433]">
+      {/* 5. Referencia en Tiempo Real: Binance P2P y Tasas Ponderadas */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        {/* Widget de Benchmark de Binance P2P */}
+        <Card className="bg-[#10131a] border-[#1e2433] lg:col-span-1">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <div className="flex items-center gap-2">
+              <span className="w-2.5 h-2.5 rounded-full bg-[#f3ba2f] animate-pulse" />
+              <CardTitle className="text-sm font-semibold text-white">
+                Binance P2P en Vivo
+              </CardTitle>
+            </div>
+            <Badge variant="neutral" className="font-mono text-[10px] text-[#f3ba2f] border-[#f3ba2f]/30 bg-[#f3ba2f]/10">
+              API Oficial 0-Key
+            </Badge>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="flex items-center justify-between text-xs font-mono">
+              <span className="text-slate-400">Par de Referencia:</span>
+              <span className="text-white font-bold">
+                USDT / {selectedFiat || metrics?.selectedFiatCurrency || "VES"}
+              </span>
+            </div>
+
+            {isLoadingBinance ? (
+              <div className="py-4 text-center text-xs font-mono text-slate-500 flex items-center justify-center gap-2">
+                <RefreshCw className="w-3.5 h-3.5 animate-spin text-[#f3ba2f]" />
+                Consultando libro Binance P2P...
+              </div>
+            ) : binanceRate && (binanceRate.buyAvg > 0 || binanceRate.sellAvg > 0) ? (
+              <>
+                <div className="grid grid-cols-2 gap-2 text-xs font-mono">
+                  <div className="p-2.5 rounded-lg bg-[#0a0d13] border border-[#1e2535]">
+                    <span className="text-[10px] text-slate-400 block uppercase">Promedio Compra</span>
+                    <span className="text-emerald-400 font-bold text-sm">
+                      {binanceRate.buyAvg.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                    </span>
+                  </div>
+                  <div className="p-2.5 rounded-lg bg-[#0a0d13] border border-[#1e2535]">
+                    <span className="text-[10px] text-slate-400 block uppercase">Promedio Venta</span>
+                    <span className="text-blue-400 font-bold text-sm">
+                      {binanceRate.sellAvg.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="p-2 rounded-lg bg-[#141824] border border-[#1e2535] flex items-center justify-between text-[11px] font-mono">
+                  <span className="text-slate-400">Spread Mercado Binance:</span>
+                  <span className="text-amber-300 font-bold">+{binanceRate.spreadPercent}%</span>
+                </div>
+              </>
+            ) : (
+              <div className="text-xs font-mono text-slate-500 py-3 text-center">
+                Sin cotizaciones directas para esta divisa.
+              </div>
+            )}
+
+            <div className="pt-1">
+              <Link href="/app/operaciones/nueva">
+                <Button variant="secondary" size="sm" className="w-full text-xs font-mono hover:text-[#00ff66]">
+                  <Zap className="w-3.5 h-3.5 mr-1.5 text-[#f3ba2f]" />
+                  Nueva Operación con Tasa Binance
+                </Button>
+              </Link>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Tasas Promedio Ponderadas del Comerciante */}
+        <Card className="bg-[#10131a] border-[#1e2433] lg:col-span-2">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <div>
               <CardTitle className="text-base flex items-center gap-2">
                 <TrendingUp className="w-4 h-4 text-[#00ff66]" />
-                Tasas Promedio Ponderadas ({activeFiatMetric.currency})
+                Tus Tasas Ponderadas ({activeFiatMetric?.currency || selectedFiat || "VES"})
               </CardTitle>
               <p className="text-xs text-slate-400 mt-0.5">
                 Calculadas por volumen ponderado: Suma(Fiat) / Suma(Cripto) sobre operaciones completadas.
               </p>
             </div>
             <Badge variant="neutral" className="font-mono text-xs">
-              {metrics?.periodLabel}
+              {metrics?.periodLabel || "30 días"}
             </Badge>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-              {Object.entries(activeFiatMetric.ratesByAsset).map(([asset, rates]) => (
-                <div
-                  key={asset}
-                  className="p-3.5 rounded-xl bg-[#0a0d13] border border-[#1c2333] space-y-2"
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="font-mono font-bold text-white text-sm">
-                      {asset}/{activeFiatMetric.currency}
-                    </span>
-                    {rates.grossSpread && (
-                      <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                        Spread: +{rates.grossSpread} {activeFiatMetric.currency}
+            {activeFiatMetric && Object.keys(activeFiatMetric.ratesByAsset).length > 0 ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {Object.entries(activeFiatMetric.ratesByAsset).map(([asset, rates]) => (
+                  <div
+                    key={asset}
+                    className="p-3.5 rounded-xl bg-[#0a0d13] border border-[#1c2333] space-y-2"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="font-mono font-bold text-white text-sm">
+                        {asset}/{activeFiatMetric.currency}
                       </span>
-                    )}
-                  </div>
-                  <div className="grid grid-cols-2 gap-2 text-xs font-mono">
-                    <div className="p-2 rounded bg-[#121620] border border-[#1c2333]">
-                      <span className="text-[10px] text-slate-400 block">Tasa Compra</span>
-                      <span className="text-emerald-400 font-bold">
-                        {rates.buyAvgRate ? `${rates.buyAvgRate}` : "—"}
-                      </span>
+                      {rates.grossSpread && (
+                        <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                          Spread: +{rates.grossSpread} {activeFiatMetric.currency}
+                        </span>
+                      )}
                     </div>
-                    <div className="p-2 rounded bg-[#121620] border border-[#1c2333]">
-                      <span className="text-[10px] text-slate-400 block">Tasa Venta</span>
-                      <span className="text-blue-400 font-bold">
-                        {rates.sellAvgRate ? `${rates.sellAvgRate}` : "—"}
-                      </span>
+                    <div className="grid grid-cols-2 gap-2 text-xs font-mono">
+                      <div className="p-2 rounded bg-[#121620] border border-[#1c2333]">
+                        <span className="text-[10px] text-slate-400 block">Tasa Compra</span>
+                        <span className="text-emerald-400 font-bold">
+                          {rates.buyAvgRate ? `${rates.buyAvgRate}` : "—"}
+                        </span>
+                      </div>
+                      <div className="p-2 rounded bg-[#121620] border border-[#1c2333]">
+                        <span className="text-[10px] text-slate-400 block">Tasa Venta</span>
+                        <span className="text-blue-400 font-bold">
+                          {rates.sellAvgRate ? `${rates.sellAvgRate}` : "—"}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between text-[11px] font-mono text-slate-400 pt-1">
+                      <span>Tasa Global:</span>
+                      <strong className="text-white">
+                        {rates.overallAvgRate ? `${rates.overallAvgRate} ${activeFiatMetric.currency}` : "—"}
+                      </strong>
                     </div>
                   </div>
-                  <div className="flex items-center justify-between text-[11px] font-mono text-slate-400 pt-1">
-                    <span>Tasa Global:</span>
-                    <strong className="text-white">
-                      {rates.overallAvgRate ? `${rates.overallAvgRate} ${activeFiatMetric.currency}` : "—"}
-                    </strong>
-                  </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-xs font-mono text-slate-400 py-6 text-center border border-dashed border-[#1c2333] rounded-lg">
+                No tienes operaciones completadas en este período para {activeFiatMetric?.currency || selectedFiat || "VES"}.
+              </div>
+            )}
           </CardContent>
         </Card>
-      )}
+      </div>
 
       {/* 6. Distribución por Exchange y Métodos de Pago */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">

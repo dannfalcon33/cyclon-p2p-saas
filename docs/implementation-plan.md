@@ -72,9 +72,10 @@ Este plan organiza el desarrollo secuencial del MVP mini-SaaS Cyclon P2P de acue
 - **Entregables:** Servicio `master-service.ts`, Server Actions `master.ts`, vista `/master` conectada con KPIs y breakdown de planes, directorio interactivo `/master/clientes` con modal de suspensión/reactivación, consola de cupones `/master/promociones`, bitácora `/master/auditoria` conectada a `platform_admin_audit_logs`, suite automatizada `tests/phase9-master-panel-test.ts`, ADR-0010.
 - **Puerta de salida:** Acceso a `/master` denegado y redirigido para comerciantes regulares; separación estricta de ingresos reales ($0.00) verificada; suspensión con bloqueo de acceso y motivo obligatorio validada; trazabilidad de auditoría append-only probada al 100%.
 
-### Fase 10: Mercado y Noticias Enterprise
-- **Objetivo:** Gráficos de BTC, ETH, SOL y BNB, noticias seleccionadas y fallback limpio en caso de API no disponible.
-- **Puerta de salida:** Acceso exclusivo para Enterprise, sin datos falsos inventados.
+### Fase 10: Mercado y Noticias Enterprise (Completada)
+- **Objetivo:** Gráficos técnicos de BTC, ETH, SOL y BNB con Klines reales de Binance, monitor de arbitraje P2P para LATAM y feed de noticias en español (CriptoNoticias RSS) mediante APIs 100% gratuitas sin API Keys.
+- **Entregables:** Servicio `crypto-market-service.ts`, Server Actions `market-data.ts`, panel interactivo `/app/mercado` con cotizaciones Spot en tiempo real, gráfico técnico dinámico SVG interactivo (1D, 7D, 1M), tabla de arbitraje P2P para 6 países de Latinoamérica (VES, COP, ARS, BRL, PEN, CLP) y feed de noticias en vivo, test suite automatizada `tests/phase10-market-news-test.ts`, ADR-0011.
+- **Puerta de salida:** Verificación de capacidades Enterprise en servidor probada; cotizaciones reales de Binance en vivo sin datos inventados; gráfico dinámico generado desde Klines; sindicación de noticias en español verificada; 17/17 pruebas superadas al 100%.
 
 ### Fase 11: QA y Pruebas
 - **Objetivo:** Suite completa de pruebas unitarias (Vitest) y pruebas de aislamiento multinquilino.
