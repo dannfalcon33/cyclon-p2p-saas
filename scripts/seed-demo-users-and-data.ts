@@ -44,6 +44,13 @@ async function seedDemoData() {
 
   // Aprovisionar workspace y trial de 7 días
   const { workspace } = await provisionWorkspaceForUser(merchant!.id, merchant!.name);
+  await db
+    .update(schema.workspaceSettings)
+    .set({
+      initialCryptoBalances: { USDT: "2500.00", BTC: "1.00000000" },
+      initialFiatBalances: { VES: "1500000.00", USD: "5000.00", COP: "10000000.00" },
+    })
+    .where(eq(schema.workspaceSettings.workspaceId, workspace.id));
   console.log(`   ✅ Comerciante listo: ${merchantEmail} | Workspace: ${workspace.name}`);
 
   // 2. BANCOS DEL COMERCIANTE

@@ -65,6 +65,101 @@ export function calculateUnitRate(fiatAmount: string | number, assetAmount: stri
   return (f / a).toFixed(8);
 }
 
+export interface WorkspaceAvailableBalances {
+  crypto: Record<string, { initial: number; bought: number; sold: number; available: number }>;
+  fiat: Record<string, { initial: number; received: number; spent: number; fees: number; available: number }>;
+  rates?: Record<string, { buyAvgRate: number | null; sellAvgRate: number | null }>;
+}
+
+/**
+ * Consulta de Saldos y Capital Disponible en tiempo real para un workspace
+ */
+export async function getWorkspaceAvailableBalances(workspaceId: string): Promise<WorkspaceAvailableBalances> {
+  const settings = await db.query.workspaceSettings.findFirst({
+    where: eq(schema.workspaceSettings.workspaceId, workspaceId),
+  });
+
+  const initCrypto = (settings?.initialCryptoBalances as Record<string, string>) || {};
+  const initFiat = (settings?.initialFiatBalances as Record<string, string>) || {};
+
+  const completedOps = await db.query.p2pOperations.findMany({
+    where: and(
+      eq(schema.p2pOperations.workspaceId, workspaceId),
+      eq(schema.p2pOperations.status, "completed")
+    ),
+  });
+
+  const cryptoMap: Record<string, { initial: number; bought: number; sold: number; available: number }> = {};
+  const fiatMap: Record<string, { initial: number; received: number; spent: number; fees: number; available: number }> = {};
+
+  for (const [sym, val] of Object.entries(initCrypto)) {
+    const initVal = parseFloat(val || "0");
+    cryptoMap[sym.toUpperCase()] = { initial: initVal, bought: 0, sold: 0, available: initVal };
+  }
+  for (const [curr, val] of Object.entries(initFiat)) {
+    const initVal = parseFloat(val || "0");
+    fiatMap[curr.toUpperCase()] = { initial: initVal, received: 0, spent: 0, fees: 0, available: initVal };
+  }
+
+  if (!cryptoMap["USDT"]) cryptoMap["USDT"] = { initial: 0, bought: 0, sold: 0, available: 0 };
+  if (!fiatMap["VES"]) fiatMap["VES"] = { initial: 0, received: 0, spent: 0, fees: 0, available: 0 };
+  if (!fiatMap["USD"]) fiatMap["USD"] = { initial: 0, received: 0, spent: 0, fees: 0, available: 0 };
+
+  for (const op of completedOps) {
+    const sym = op.assetSymbol.toUpperCase();
+    const fiat = op.fiatCurrency.toUpperCase();
+    const assetAmt = parseFloat(op.assetAmount || "0");
+    const fiatAmt = parseFloat(op.fiatAmount || "0");
+    const merchFee = parseFloat(op.merchantFee || "0");
+    const exchFee = parseFloat(op.exchangeFee || "0");
+    const payCharge = parseFloat(op.paymentCharge || "0");
+
+    if (!cryptoMap[sym]) {
+      cryptoMap[sym] = { initial: 0, bought: 0, sold: 0, available: 0 };
+    }
+    if (!fiatMap[fiat]) {
+      fiatMap[fiat] = { initial: 0, received: 0, spent: 0, fees: 0, available: 0 };
+    }
+
+    if (op.operationSide === "buy") {
+      cryptoMap[sym].bought += assetAmt;
+      fiatMap[fiat].spent += fiatAmt;
+    } else if (op.operationSide === "sell") {
+      cryptoMap[sym].sold += assetAmt;
+      fiatMap[fiat].received += fiatAmt;
+    }
+
+    fiatMap[fiat].fees += (merchFee - exchFee - payCharge);
+  }
+
+  const ratesAccumulator: Record<string, { buyFiat: number; buyAsset: number; sellFiat: number; sellAsset: number }> = {};
+  for (const op of completedOps) {
+    const key = `${op.assetSymbol.toUpperCase()}_${op.fiatCurrency.toUpperCase()}`;
+    if (!ratesAccumulator[key]) {
+      ratesAccumulator[key] = { buyFiat: 0, buyAsset: 0, sellFiat: 0, sellAsset: 0 };
+    }
+    const assetAmt = parseFloat(op.assetAmount || "0");
+    const fiatAmt = parseFloat(op.fiatAmount || "0");
+    if (op.operationSide === "buy") {
+      ratesAccumulator[key].buyFiat += fiatAmt;
+      ratesAccumulator[key].buyAsset += assetAmt;
+    } else if (op.operationSide === "sell") {
+      ratesAccumulator[key].sellFiat += fiatAmt;
+      ratesAccumulator[key].sellAsset += assetAmt;
+    }
+  }
+
+  const rates: Record<string, { buyAvgRate: number | null; sellAvgRate: number | null }> = {};
+  for (const [key, r] of Object.entries(ratesAccumulator)) {
+    rates[key] = {
+      buyAvgRate: r.buyAsset > 0 ? r.buyFiat / r.buyAsset : null,
+      sellAvgRate: r.sellAsset > 0 ? r.sellFiat / r.sellAsset : null,
+    };
+  }
+
+  return { crypto: cryptoMap, fiat: fiatMap, rates };
+}
+
 /**
  * 1. Crear Operación P2P con snapshot inmutable y tasa calculada en servidor
  */
@@ -83,6 +178,37 @@ export async function createOperation(workspaceId: string, input: CreateOperatio
   }
   if (isNaN(fiatNum) || fiatNum <= 0) {
     throw new Error("El importe fiat total debe ser mayor a cero.");
+  }
+
+  // 0b. Validación estricta de saldo / capital disponible según el requerimiento de negocio
+  const balances = await getWorkspaceAvailableBalances(workspaceId);
+
+  if (input.operationSide === "sell") {
+    const sym = input.assetSymbol.toUpperCase();
+    const availableCrypto = balances.crypto[sym]?.available ?? 0;
+    if (availableCrypto <= 0) {
+      throw new Error(
+        `Operación denegada: Tu capital de ${sym} está en 0. No se puede permitir la venta porque no hay activos para vender.`
+      );
+    }
+    if (assetNum > availableCrypto) {
+      throw new Error(
+        `Operación denegada: Quieres vender ${assetNum.toFixed(4)} ${sym}, pero tu capital disponible es de ${availableCrypto.toFixed(4)} ${sym}. No hay activos suficientes para vender.`
+      );
+    }
+  } else if (input.operationSide === "buy") {
+    const fiat = input.fiatCurrency.toUpperCase();
+    const availableFiat = balances.fiat[fiat]?.available ?? 0;
+    if (availableFiat <= 0) {
+      throw new Error(
+        `Operación denegada: Tu saldo fiat disponible en ${fiat} está en 0. No se puede permitir la compra porque no hay fondos fiat para comprar el activo.`
+      );
+    }
+    if (fiatNum > availableFiat) {
+      throw new Error(
+        `Operación denegada: El costo de compra es ${fiatNum.toFixed(2)} ${fiat}, pero tu saldo fiat disponible es de ${availableFiat.toFixed(2)} ${fiat}. No hay saldo fiat suficiente para comprar el activo.`
+      );
+    }
   }
 
   // 1. Tasa Unitaria

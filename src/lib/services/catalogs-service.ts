@@ -204,6 +204,8 @@ export async function updateWorkspaceSettings(
     primaryCountry?: string;
     timezone?: string;
     enabledFiatCurrencies?: string[];
+    initialCryptoBalances?: Record<string, string>;
+    initialFiatBalances?: Record<string, string>;
     businessName?: string;
     taxId?: string;
   }
@@ -214,6 +216,8 @@ export async function updateWorkspaceSettings(
       ...(data.primaryCountry && { primaryCountry: data.primaryCountry }),
       ...(data.timezone && { timezone: data.timezone }),
       ...(data.enabledFiatCurrencies && { enabledFiatCurrencies: data.enabledFiatCurrencies }),
+      ...(data.initialCryptoBalances && { initialCryptoBalances: data.initialCryptoBalances }),
+      ...(data.initialFiatBalances && { initialFiatBalances: data.initialFiatBalances }),
       ...(data.businessName !== undefined && { businessName: data.businessName }),
       ...(data.taxId !== undefined && { taxId: data.taxId }),
       updatedAt: new Date(),

@@ -109,6 +109,14 @@ export const workspaceSettings = pgTable("workspace_settings", {
     .$type<string[]>()
     .default(["VES", "USD"])
     .notNull(),
+  initialCryptoBalances: jsonb("initial_crypto_balances")
+    .$type<Record<string, string>>()
+    .default({ USDT: "0.00" })
+    .notNull(),
+  initialFiatBalances: jsonb("initial_fiat_balances")
+    .$type<Record<string, string>>()
+    .default({ VES: "0.00", USD: "0.00" })
+    .notNull(),
   taxId: text("tax_id"),
   businessName: text("business_name"),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),

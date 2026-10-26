@@ -21,9 +21,14 @@ import {
   Zap,
   RefreshCw,
   Sparkles,
+  Percent,
+  TrendingUp,
+  TrendingDown,
+  AlertCircle,
+  Coins,
 } from "lucide-react";
 import { fetchFullConfigurationAction } from "@/app/actions/catalogs";
-import { createOperationAction } from "@/app/actions/operations";
+import { createOperationAction, fetchWorkspaceBalancesAction } from "@/app/actions/operations";
 import { fetchWorkspaceSubscriptionAction } from "@/app/actions/plans";
 import { fetchMultiExchangeP2PAction } from "@/app/actions/multi-exchange";
 import type { MultiExchangeP2PComparison } from "@/lib/services/multi-exchange-service";
@@ -33,6 +38,13 @@ export default function NewOperationPage() {
 
   // Loading state
   const [isLoading, setIsLoading] = React.useState(true);
+
+  // Capital y Saldos disponibles en tiempo real (con tasas históricas)
+  const [balances, setBalances] = React.useState<{
+    crypto: Record<string, { initial: number; bought: number; sold: number; available: number }>;
+    fiat: Record<string, { initial: number; received: number; spent: number; fees: number; available: number }>;
+    rates?: Record<string, { buyAvgRate: number | null; sellAvgRate: number | null }>;
+  } | null>(null);
 
   // Catalogs from DB
   const [countries, setCountries] = React.useState<any[]>([]);
@@ -51,7 +63,11 @@ export default function NewOperationPage() {
   const [asset, setAsset] = React.useState("USDT");
 
   const [cryptoAmount, setCryptoAmount] = React.useState("");
+  const [unitPrice, setUnitPrice] = React.useState("");
   const [fiatAmount, setFiatAmount] = React.useState("");
+
+  // Precio de Referencia / Costo Base editable por el usuario
+  const [customRefPrice, setCustomRefPrice] = React.useState("");
 
   // Multi-Exchange P2P Real-Time Benchmark State
   const [multiP2PData, setMultiP2PData] = React.useState<MultiExchangeP2PComparison | null>(null);
@@ -63,9 +79,18 @@ export default function NewOperationPage() {
   const [customMethodName, setCustomMethodName] = React.useState("");
   const [customBankName, setCustomBankName] = React.useState("");
 
-  const [merchantFee, setMerchantFee] = React.useState("0.00");
-  const [exchangeFee, setExchangeFee] = React.useState("0.00");
-  const [paymentCharge, setPaymentCharge] = React.useState("0.00");
+  // Comisiones con soporte dual (% Porcentaje o Monto Fijo en fiat)
+  const [merchantFeeMode, setMerchantFeeMode] = React.useState<"percent" | "fixed">("percent");
+  const [merchantFeePercent, setMerchantFeePercent] = React.useState("0.50");
+  const [merchantFeeFixed, setMerchantFeeFixed] = React.useState("0.00");
+
+  const [exchangeFeeMode, setExchangeFeeMode] = React.useState<"percent" | "fixed">("percent");
+  const [exchangeFeePercent, setExchangeFeePercent] = React.useState("0.10");
+  const [exchangeFeeFixed, setExchangeFeeFixed] = React.useState("0.00");
+
+  const [paymentChargeMode, setPaymentChargeMode] = React.useState<"percent" | "fixed">("fixed");
+  const [paymentChargePercent, setPaymentChargePercent] = React.useState("0.30");
+  const [paymentChargeFixed, setPaymentChargeFixed] = React.useState("0.00");
 
   const [reference, setReference] = React.useState("");
   const [counterpartyAlias, setCounterpartyAlias] = React.useState("");
@@ -108,34 +133,256 @@ export default function NewOperationPage() {
     };
   }, [fiatCurrency, asset]);
 
-  // Apply exchange rate automatically to amounts
+  // Active market reference rate for the selected side and exchange
+  const activeMarketRef = React.useMemo(() => {
+    if (!multiP2PData) return null;
+    const curEx =
+      multiP2PData.exchanges.find((e) => e.exchange === selectedP2PExchange) ||
+      multiP2PData.exchanges[0];
+    if (!curEx) return null;
+    return side === "buy" ? curEx.buyAvg : curEx.sellAvg;
+  }, [multiP2PData, selectedP2PExchange, side]);
+
+  // Sincronización bidireccional inteligente: Cripto * Precio = Fiat
+  const handleCryptoChange = (val: string) => {
+    setCryptoAmount(val);
+    const c = parseFloat(val);
+    const p = parseFloat(unitPrice);
+    const f = parseFloat(fiatAmount);
+
+    if (!isNaN(c) && c > 0) {
+      if (!isNaN(p) && p > 0) {
+        setFiatAmount((c * p).toFixed(2));
+      } else if (!isNaN(f) && f > 0) {
+        setUnitPrice((f / c).toFixed(4));
+      }
+    } else if (val === "") {
+      setFiatAmount("");
+    }
+  };
+
+  const handlePriceChange = (val: string) => {
+    setUnitPrice(val);
+    const p = parseFloat(val);
+    const c = parseFloat(cryptoAmount);
+    const f = parseFloat(fiatAmount);
+
+    if (!isNaN(p) && p > 0) {
+      if (!isNaN(c) && c > 0) {
+        setFiatAmount((c * p).toFixed(2));
+      } else if (!isNaN(f) && f > 0) {
+        setCryptoAmount((f / p).toFixed(4));
+      }
+    }
+  };
+
+  const handleFiatChange = (val: string) => {
+    setFiatAmount(val);
+    const f = parseFloat(val);
+    const c = parseFloat(cryptoAmount);
+    const p = parseFloat(unitPrice);
+
+    if (!isNaN(f) && f > 0) {
+      if (!isNaN(c) && c > 0) {
+        setUnitPrice((f / c).toFixed(4));
+      } else if (!isNaN(p) && p > 0) {
+        setCryptoAmount((f / p).toFixed(4));
+      }
+    }
+  };
+
+  // Tasa histórica del workspace (promedio ponderado de compras o ventas previas)
+  const historicalRate = React.useMemo(() => {
+    const key = `${asset.toUpperCase()}_${fiatCurrency.toUpperCase()}`;
+    const r = (balances as any)?.rates?.[key];
+    if (!r) return null;
+    return side === "sell" ? r.buyAvgRate : r.sellAvgRate;
+  }, [balances, asset, fiatCurrency, side]);
+
+  // Precio de referencia por defecto:
+  // En Venta: Costo base histórico (si existe) o precio de compra P2P de mercado
+  // En Compra: Precio objetivo de venta histórico (si existe) o precio de venta P2P de mercado
+  const defaultRefRate = React.useMemo(() => {
+    if (side === "sell") {
+      if (historicalRate && historicalRate > 0) return historicalRate;
+      if (multiP2PData) {
+        const curEx =
+          multiP2PData.exchanges.find((e) => e.exchange === selectedP2PExchange) ||
+          multiP2PData.exchanges[0];
+        if (curEx && curEx.buyAvg > 0) return curEx.buyAvg;
+      }
+      return activeMarketRef || 0;
+    } else {
+      if (historicalRate && historicalRate > 0) return historicalRate;
+      if (multiP2PData) {
+        const curEx =
+          multiP2PData.exchanges.find((e) => e.exchange === selectedP2PExchange) ||
+          multiP2PData.exchanges[0];
+        if (curEx && curEx.sellAvg > 0) return curEx.sellAvg;
+      }
+      return activeMarketRef || 0;
+    }
+  }, [side, historicalRate, multiP2PData, selectedP2PExchange, activeMarketRef]);
+
+  // Tasa efectiva de referencia (el usuario puede sobreescribirla en cualquier momento)
+  const effectiveRefRate = React.useMemo(() => {
+    const custom = parseFloat(customRefPrice);
+    if (!isNaN(custom) && custom > 0) return custom;
+    return defaultRefRate;
+  }, [customRefPrice, defaultRefRate]);
+
+  // Cálculo de montos de comisión en fiat según el modo (Porcentaje o Monto Fijo)
+  const currentFiatVal = parseFloat(fiatAmount) || 0;
+
+  const computedMerchantFee = React.useMemo(() => {
+    if (merchantFeeMode === "percent") {
+      const p = parseFloat(merchantFeePercent) || 0;
+      return (currentFiatVal * p) / 100;
+    }
+    return parseFloat(merchantFeeFixed) || 0;
+  }, [merchantFeeMode, merchantFeePercent, merchantFeeFixed, currentFiatVal]);
+
+  const computedExchangeFee = React.useMemo(() => {
+    if (exchangeFeeMode === "percent") {
+      const p = parseFloat(exchangeFeePercent) || 0;
+      return (currentFiatVal * p) / 100;
+    }
+    return parseFloat(exchangeFeeFixed) || 0;
+  }, [exchangeFeeMode, exchangeFeePercent, exchangeFeeFixed, currentFiatVal]);
+
+  const computedPaymentCharge = React.useMemo(() => {
+    if (paymentChargeMode === "percent") {
+      const p = parseFloat(paymentChargePercent) || 0;
+      return (currentFiatVal * p) / 100;
+    }
+    return parseFloat(paymentChargeFixed) || 0;
+  }, [paymentChargeMode, paymentChargePercent, paymentChargeFixed, currentFiatVal]);
+
+  // Aplicar tasa de mercado o referencia directamente
   const applyExchangeRate = (rateToApply: number) => {
     if (!rateToApply || rateToApply <= 0) return;
+    const formattedRate = rateToApply.toFixed(4);
+    setUnitPrice(formattedRate);
     const c = parseFloat(cryptoAmount);
     const f = parseFloat(fiatAmount);
 
     if (!isNaN(c) && c > 0) {
       setFiatAmount((c * rateToApply).toFixed(2));
     } else if (!isNaN(f) && f > 0) {
-      setCryptoAmount((f / rateToApply).toFixed(2));
+      setCryptoAmount((f / rateToApply).toFixed(4));
     } else {
-      setCryptoAmount("100.00");
-      setFiatAmount((100 * rateToApply).toFixed(2));
+      setCryptoAmount("10.00");
+      setFiatAmount((10 * rateToApply).toFixed(2));
     }
   };
+
+  // Aplicar spread directo en moneda fiat (+2.00, +5.00, etc.) sobre la referencia
+  const applyUnitSpread = (delta: number) => {
+    if (effectiveRefRate <= 0) return;
+    const targetRate = side === "sell"
+      ? effectiveRefRate + delta
+      : Math.max(0.0001, effectiveRefRate - delta);
+
+    setUnitPrice(targetRate.toFixed(4));
+    const c = parseFloat(cryptoAmount);
+    if (!isNaN(c) && c > 0) {
+      setFiatAmount((c * targetRate).toFixed(2));
+    } else {
+      setCryptoAmount("10.00");
+      setFiatAmount((10 * targetRate).toFixed(2));
+    }
+  };
+
+  // Fijar sobrante deseado en fiat total y derivar automáticamente la tasa unitaria requerida
+  const handleDesiredSurplusChange = (desiredSurplusVal: string) => {
+    const targetSurplus = parseFloat(desiredSurplusVal);
+    const c = parseFloat(cryptoAmount);
+    if (isNaN(targetSurplus) || effectiveRefRate <= 0) return;
+
+    if (c > 0) {
+      const requiredSpread = targetSurplus / c;
+      const targetRate = side === "sell"
+        ? effectiveRefRate + requiredSpread
+        : Math.max(0.0001, effectiveRefRate - requiredSpread);
+
+      setUnitPrice(targetRate.toFixed(4));
+      setFiatAmount((c * targetRate).toFixed(2));
+    }
+  };
+
+  // Pasos dinámicos en moneda fiat para botones de spread según la magnitud del precio
+  const dynamicSpreadSteps = React.useMemo(() => {
+    const ref = effectiveRefRate || 1000;
+    if (ref >= 500) return [2, 5, 10, 20, 50];
+    if (ref >= 100) return [1, 2, 5, 10, 20];
+    if (ref >= 10) return [0.2, 0.5, 1, 2, 5];
+    return [0.01, 0.02, 0.05, 0.10, 0.20];
+  }, [effectiveRefRate]);
+
+  // Inteligencia de Sobrante de la Transacción y Rentabilidad Neta
+  const currentUnitPrice = parseFloat(unitPrice) || 0;
+  const currentCrypto = parseFloat(cryptoAmount) || 0;
+
+  const surplusAnalysis = React.useMemo(() => {
+    if (effectiveRefRate <= 0 || currentUnitPrice <= 0) {
+      return null;
+    }
+
+    // Diferencial por unidad de cripto (spread en fiat)
+    // En venta: si se vende a 1015.81 y el promedio es 1006.01, la ganancia es +9.80 VES por USDT
+    // En compra: si se compra a 1006.01 y la referencia de venta es 1015.81, el margen es +9.80 VES por USDT
+    const unitDiff = side === "sell"
+      ? currentUnitPrice - effectiveRefRate
+      : effectiveRefRate - currentUnitPrice;
+
+    const isProfitable = unitDiff > 0.0001;
+    const isBreakEven = Math.abs(unitDiff) <= 0.0001;
+
+    // Sobrante Bruto = Cantidad Cripto * Diferencial por unidad
+    const grossSurplus = currentCrypto > 0 ? currentCrypto * unitDiff : 0;
+
+    // Impacto de comisiones
+    const netCommissionAdjustment = computedMerchantFee - computedExchangeFee - computedPaymentCharge;
+    const netSurplus = grossSurplus + netCommissionAdjustment;
+
+    const marginPct = effectiveRefRate > 0 ? (unitDiff / effectiveRefRate) * 100 : 0;
+
+    return {
+      unitDiff,
+      grossSurplus,
+      netCommissionAdjustment,
+      netSurplus,
+      marginPct,
+      isProfitable,
+      isBreakEven,
+    };
+  }, [
+    effectiveRefRate,
+    currentUnitPrice,
+    currentCrypto,
+    side,
+    computedMerchantFee,
+    computedExchangeFee,
+    computedPaymentCharge,
+  ]);
 
   // Load catalogs on mount
   React.useEffect(() => {
     async function loadCatalogs() {
       try {
         setIsLoading(true);
-        const [config, subData] = await Promise.all([
+        const [config, subData, balData] = await Promise.all([
           fetchFullConfigurationAction(),
           fetchWorkspaceSubscriptionAction().catch(() => null),
+          fetchWorkspaceBalancesAction().catch(() => null),
         ]);
 
         if (subData?.subscription?.isExpired) {
           setIsPlanExpired(true);
+        }
+
+        if (balData) {
+          setBalances(balData);
         }
 
         setCountries(config.countries || []);
@@ -214,47 +461,109 @@ export default function NewOperationPage() {
     setSelectedMethodId("");
   };
 
-  // Derive unit rate: fiat / crypto
+  // Balances en tiempo real para validación estricta
+  const activeCryptoBalance = React.useMemo(() => {
+    if (!balances?.crypto) return 0;
+    const item = balances.crypto[asset.toUpperCase()];
+    return item ? item.available : 0;
+  }, [balances, asset]);
+
+  const activeFiatBalance = React.useMemo(() => {
+    if (!balances?.fiat) return 0;
+    const item = balances.fiat[fiatCurrency.toUpperCase()];
+    return item ? item.available : 0;
+  }, [balances, fiatCurrency]);
+
+  const cryptoVal = parseFloat(cryptoAmount) || 0;
+  const fiatVal = parseFloat(fiatAmount) || 0;
+
+  // Validación estricta: bloqueo por falta de activos (venta) o falta de fiat (compra)
+  const isInsufficientBalance = React.useMemo(() => {
+    if (side === "sell") {
+      if (activeCryptoBalance <= 0) return true;
+      if (cryptoVal > activeCryptoBalance) return true;
+    } else if (side === "buy") {
+      if (activeFiatBalance <= 0) return true;
+      if (fiatVal > activeFiatBalance) return true;
+    }
+    return false;
+  }, [side, activeCryptoBalance, activeFiatBalance, cryptoVal, fiatVal]);
+
+  const balanceErrorMessage = React.useMemo(() => {
+    if (side === "sell") {
+      if (activeCryptoBalance <= 0) {
+        return `⚠️ Sin activos para vender: Tu capital de ${asset} está en 0. No puedes registrar una venta sin activos en inventario.`;
+      }
+      if (cryptoVal > activeCryptoBalance) {
+        return `⚠️ Capital insuficiente: Quieres vender ${cryptoVal.toFixed(4)} ${asset}, pero solo dispones de ${activeCryptoBalance.toFixed(4)} ${asset}.`;
+      }
+    } else if (side === "buy") {
+      if (activeFiatBalance <= 0) {
+        return `⚠️ Sin fondos fiat para comprar: Tu saldo fiat en ${fiatCurrency} está en 0. No puedes registrar una compra sin saldo fiat disponible.`;
+      }
+      if (fiatVal > activeFiatBalance) {
+        return `⚠️ Saldo insuficiente: El costo de compra es ${fiatVal.toFixed(2)} ${fiatCurrency}, pero solo dispones de ${activeFiatBalance.toFixed(2)} ${fiatCurrency}.`;
+      }
+    }
+    return null;
+  }, [side, asset, fiatCurrency, activeCryptoBalance, activeFiatBalance, cryptoVal, fiatVal]);
+
+  // Tasa unitaria efectiva (precio de la orden)
   const calculatedRate = React.useMemo(() => {
+    if (unitPrice && !isNaN(parseFloat(unitPrice)) && parseFloat(unitPrice) > 0) {
+      return parseFloat(unitPrice).toFixed(4);
+    }
     const c = parseFloat(cryptoAmount);
     const f = parseFloat(fiatAmount);
     if (!isNaN(c) && !isNaN(f) && c > 0) {
       return (f / c).toFixed(4);
     }
     return "";
-  }, [cryptoAmount, fiatAmount]);
+  }, [unitPrice, cryptoAmount, fiatAmount]);
 
-  // Recalculate merchant fee when fiat amount or commission rule changes
+  // Sincronizar regla de comisión del perfil activo con el formulario
   React.useEffect(() => {
-    const f = parseFloat(fiatAmount);
-    if (!isNaN(f) && f > 0 && activeCommissionRule) {
+    if (activeCommissionRule) {
       const pct = parseFloat(activeCommissionRule.percentage) || 0;
       const fixed = parseFloat(activeCommissionRule.fixedFee) || 0;
-      const calculated = (f * pct) + fixed;
-      setMerchantFee(calculated.toFixed(2));
-    } else if (isNaN(f) || f <= 0) {
-      setMerchantFee("0.00");
+      if (pct > 0) {
+        setMerchantFeeMode("percent");
+        setMerchantFeePercent((pct * 100).toFixed(2));
+      } else if (fixed > 0) {
+        setMerchantFeeMode("fixed");
+        setMerchantFeeFixed(fixed.toFixed(2));
+      }
     }
-  }, [fiatAmount, activeCommissionRule]);
+  }, [activeCommissionRule]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isInsufficientBalance) {
+      setErrorMessage(balanceErrorMessage || "Saldo insuficiente para registrar la operación.");
+      return;
+    }
     setIsSubmitting(true);
     setErrorMessage(null);
     setSuccessMessage(null);
 
     try {
+      const finalCrypto = cryptoAmount;
+      let finalFiat = fiatAmount;
+      if ((!finalFiat || parseFloat(finalFiat) <= 0) && parseFloat(finalCrypto) > 0 && parseFloat(unitPrice) > 0) {
+        finalFiat = (parseFloat(finalCrypto) * parseFloat(unitPrice)).toFixed(2);
+      }
+
       await createOperationAction({
         countryCode: country,
         exchangeCode: exchange,
         operationSide: side,
         assetSymbol: asset,
-        assetAmount: cryptoAmount,
+        assetAmount: finalCrypto,
         fiatCurrency,
-        fiatAmount,
-        merchantFee,
-        exchangeFee,
-        paymentCharge,
+        fiatAmount: finalFiat,
+        merchantFee: computedMerchantFee.toFixed(2),
+        exchangeFee: computedExchangeFee.toFixed(2),
+        paymentCharge: computedPaymentCharge.toFixed(2),
         paymentMethodId: selectedMethodId && selectedMethodId !== "custom" ? selectedMethodId : null,
         bankId: requiresBank && selectedBankId && selectedBankId !== "custom" ? selectedBankId : null,
         customMethodName: selectedMethodId === "custom" ? customMethodName : undefined,
@@ -403,9 +712,28 @@ export default function NewOperationPage() {
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-medium text-slate-300 mb-1.5">
-                    Tipo de Operación
-                  </label>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="text-xs font-medium text-slate-300">
+                      Tipo de Operación
+                    </label>
+                    {side === "sell" ? (
+                      <span className={`text-[11px] font-mono px-2 py-0.5 rounded border transition-all ${
+                        activeCryptoBalance <= 0
+                          ? "bg-rose-500/10 text-rose-400 border-rose-500/30"
+                          : "bg-cyan-500/10 text-cyan-400 border-cyan-500/30"
+                      }`}>
+                        Disponible: {activeCryptoBalance.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 4 })} {asset}
+                      </span>
+                    ) : (
+                      <span className={`text-[11px] font-mono px-2 py-0.5 rounded border transition-all ${
+                        activeFiatBalance <= 0
+                          ? "bg-rose-500/10 text-rose-400 border-rose-500/30"
+                          : "bg-amber-500/10 text-amber-400 border-amber-500/30"
+                      }`}>
+                        Saldo Fiat: {activeFiatBalance.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {fiatCurrency}
+                      </span>
+                    )}
+                  </div>
                   <div className="grid grid-cols-2 gap-2">
                     <button
                       type="button"
@@ -444,6 +772,13 @@ export default function NewOperationPage() {
                   ))}
                 </Select>
               </div>
+
+              {balanceErrorMessage && (
+                <div className="p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs font-mono flex items-center gap-2.5">
+                  <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
+                  <span>{balanceErrorMessage}</span>
+                </div>
+              )}
 
               {/* Indicador Multi-Exchange P2P en Vivo (Binance, Bybit, OKX) con Selector y Ajuste */}
               {asset === "USDT" && (
@@ -586,14 +921,135 @@ export default function NewOperationPage() {
                 </div>
               )}
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
+              {/* Panel de Costo Base / Precio de Referencia para Medir el Sobrante */}
+              <div className="p-3.5 rounded-xl bg-[#0b0e14] border border-[#1e2535] space-y-3">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <Coins className="w-4 h-4 text-[#00ff66]" />
+                    <span className="text-xs font-mono font-bold text-slate-200">
+                      {side === "sell"
+                        ? "Precio Promedio de Costo / Referencia"
+                        : "Precio Objetivo de Reventa / Referencia"}
+                    </span>
+                    <Badge variant="neutral" className="text-[10px] bg-emerald-500/10 text-emerald-400 border-emerald-500/30">
+                      Base de Cálculo
+                    </Badge>
+                  </div>
+
+                  {/* Acciones para fijar referencia de costo rápidamente */}
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    {historicalRate && historicalRate > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setCustomRefPrice(historicalRate.toFixed(4));
+                        }}
+                        className="text-[10px] font-mono px-2 py-0.5 rounded bg-[#161c28] hover:bg-[#1e2738] text-cyan-300 border border-cyan-500/30 transition-all cursor-pointer"
+                      >
+                        Costo Histórico ({historicalRate.toFixed(2)} {fiatCurrency})
+                      </button>
+                    )}
+                    {activeMarketRef && activeMarketRef > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setCustomRefPrice(activeMarketRef.toFixed(4));
+                        }}
+                        className="text-[10px] font-mono px-2 py-0.5 rounded bg-[#161c28] hover:bg-[#1e2738] text-amber-300 border border-amber-500/30 transition-all cursor-pointer"
+                      >
+                        Mercado P2P ({activeMarketRef.toFixed(2)} {fiatCurrency})
+                      </button>
+                    )}
+                    {customRefPrice && (
+                      <button
+                        type="button"
+                        onClick={() => setCustomRefPrice("")}
+                        className="text-[10px] font-mono px-2 py-0.5 rounded bg-[#1c1824] hover:bg-[#281e35] text-slate-400 hover:text-white border border-[#2d253a] transition-all cursor-pointer"
+                      >
+                        Restablecer Auto
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-center">
+                  <div>
+                    <Input
+                      label={`Precio Referencia / Costo Base (${fiatCurrency}/${asset})`}
+                      type="number"
+                      step="any"
+                      placeholder={defaultRefRate > 0 ? defaultRefRate.toFixed(4) : "Ej. 1006.01"}
+                      value={customRefPrice}
+                      onChange={(e) => setCustomRefPrice(e.target.value)}
+                      helperText={
+                        customRefPrice
+                          ? "Costo personalizado fijado manualmente"
+                          : historicalRate
+                          ? `Calculado de tus compras previas de ${asset}`
+                          : activeMarketRef
+                          ? `Tomado del promedio del mercado P2P actual`
+                          : "Define el costo base de adquisición"
+                      }
+                    />
+                  </div>
+
+                  <div className="p-3 rounded-lg bg-[#111520] border border-[#1e2536] text-[11px] font-mono text-slate-300 space-y-1">
+                    <div className="text-slate-400 text-[10px] uppercase font-bold flex items-center gap-1.5">
+                      <HelpCircle className="w-3.5 h-3.5 text-cyan-400" />
+                      Lógica de Comerciante P2P:
+                    </div>
+                    <div className="text-slate-300 leading-relaxed">
+                      {side === "sell" ? (
+                        <span>
+                          Tu costo base es de{" "}
+                          <strong className="text-white">
+                            {effectiveRefRate > 0 ? effectiveRefRate.toFixed(2) : "0.00"} {fiatCurrency}
+                          </strong>
+                          . Al vender por encima de este precio, la diferencia total es tu{" "}
+                          <span className="text-[#00ff66] font-bold">sobrante de transacción</span>.
+                        </span>
+                      ) : (
+                        <span>
+                          Tu precio de referencia es de{" "}
+                          <strong className="text-white">
+                            {effectiveRefRate > 0 ? effectiveRefRate.toFixed(2) : "0.00"} {fiatCurrency}
+                          </strong>
+                          . Al comprar con descuento bajo este precio, aseguras tu{" "}
+                          <span className="text-[#00ff66] font-bold">margen de ganancia</span>.
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Montos y Precio de la Operación */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-1">
                 <Input
                   label={`Cantidad Cripto (${asset})`}
                   type="number"
                   step="any"
-                  placeholder="Ej. 500.00"
+                  placeholder="Ej. 10.00"
                   value={cryptoAmount}
-                  onChange={(e) => setCryptoAmount(e.target.value)}
+                  onChange={(e) => handleCryptoChange(e.target.value)}
+                  helperText="Cantidad cripto que compras o vendes"
+                  required
+                />
+
+                <Input
+                  label={`Precio / Tasa de Operación (${fiatCurrency}/${asset})`}
+                  type="number"
+                  step="any"
+                  placeholder={effectiveRefRate > 0 ? effectiveRefRate.toFixed(2) : "Ej. 1015.81"}
+                  value={unitPrice}
+                  onChange={(e) => handlePriceChange(e.target.value)}
+                  className="bg-[#0b0d13] text-[#00ff66] font-mono font-bold"
+                  leftIcon={<Calculator className="w-4 h-4 text-[#00ff66]" />}
+                  helperText={
+                    side === "sell"
+                      ? "Fija un precio superior a tu costo para generar sobrante"
+                      : "Fija un precio con descuento para comprar barato"
+                  }
                   required
                 />
 
@@ -601,20 +1057,192 @@ export default function NewOperationPage() {
                   label={`Importe Fiat Total (${fiatCurrency})`}
                   type="number"
                   step="any"
-                  placeholder="Ej. 19325.00"
+                  placeholder="Ej. 10158.10"
                   value={fiatAmount}
-                  onChange={(e) => setFiatAmount(e.target.value)}
+                  onChange={(e) => handleFiatChange(e.target.value)}
+                  helperText="Importe fiat total resultante"
                   required
                 />
-
-                <Input
-                  label={`Tasa Unitaria Calculada (${fiatCurrency}/${asset})`}
-                  value={calculatedRate ? `${calculatedRate} ${fiatCurrency}` : "Pendiente de importes"}
-                  readOnly
-                  className="bg-[#0b0d13] text-[#00ff66] font-mono font-bold"
-                  leftIcon={<Calculator className="w-4 h-4 text-[#00ff66]" />}
-                />
               </div>
+
+              {/* Calculador de Sobrante de Transacción & Fijador de Spread en Fiat */}
+              <div className="p-3 rounded-xl bg-[#0e121b] border border-[#1d2638] space-y-3">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div className="flex items-center gap-1.5 text-xs font-mono text-slate-200">
+                    <Sliders className="w-3.5 h-3.5 text-[#00ff66]" />
+                    <span className="font-bold">Fijar Ganancia / Spread en {fiatCurrency}:</span>
+                    {effectiveRefRate > 0 && (
+                      <span className="text-[11px] text-slate-400">
+                        (Ref: <strong className="text-white">{effectiveRefRate.toFixed(2)}</strong> {fiatCurrency})
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Botones de Diferencial por Unidad en Moneda Fiat */}
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => applyUnitSpread(0)}
+                      disabled={effectiveRefRate <= 0}
+                      className="px-2.5 py-1 text-[11px] font-mono rounded bg-[#161c28] hover:bg-[#1e2738] text-slate-300 border border-[#232c3e] transition-all cursor-pointer disabled:opacity-50"
+                    >
+                      A la Par (0)
+                    </button>
+
+                    {dynamicSpreadSteps.map((step) => (
+                      <button
+                        key={step}
+                        type="button"
+                        onClick={() => applyUnitSpread(step)}
+                        disabled={effectiveRefRate <= 0}
+                        className={`px-2.5 py-1 text-[11px] font-mono font-bold rounded border transition-all cursor-pointer disabled:opacity-50 ${
+                          side === "sell"
+                            ? "bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border-emerald-500/30"
+                            : "bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 border-cyan-500/30"
+                        }`}
+                      >
+                        {side === "sell"
+                          ? `+${step < 1 ? step.toFixed(2) : step} ${fiatCurrency}`
+                          : `-${step < 1 ? step.toFixed(2) : step} ${fiatCurrency}`}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Bidireccionalidad: Entrada de Sobrante Deseado o Diferencial por Unidad */}
+                {currentCrypto > 0 && effectiveRefRate > 0 && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-[#1a2130] items-center">
+                    <div className="flex items-center gap-2">
+                      <label className="text-[11px] font-mono text-slate-300 shrink-0">
+                        Sobrante Deseado ({fiatCurrency}):
+                      </label>
+                      <div className="relative flex-1">
+                        <input
+                          type="number"
+                          step="any"
+                          placeholder={surplusAnalysis ? surplusAnalysis.grossSurplus.toFixed(2) : "Ej. 98.00"}
+                          value={surplusAnalysis && surplusAnalysis.grossSurplus !== 0 ? surplusAnalysis.grossSurplus.toFixed(2) : ""}
+                          onChange={(e) => handleDesiredSurplusChange(e.target.value)}
+                          className="w-full h-8 px-2.5 text-xs font-mono font-bold rounded bg-[#0a0d14] border border-[#232c40] text-[#00ff66] focus:border-[#00ff66] outline-none"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="text-[11px] font-mono text-slate-400 flex items-center justify-between sm:justify-end gap-2">
+                      <span>Diferencial por {asset}:</span>
+                      <strong className={surplusAnalysis && surplusAnalysis.isProfitable ? "text-emerald-400" : "text-amber-400"}>
+                        {surplusAnalysis
+                          ? `${surplusAnalysis.unitDiff >= 0 ? "+" : ""}${surplusAnalysis.unitDiff.toFixed(2)} ${fiatCurrency}/${asset}`
+                          : `0.00 ${fiatCurrency}/${asset}`}
+                      </strong>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Widget de Inteligencia de Sobrante y Rentabilidad Neta de la Operación */}
+              {surplusAnalysis && (
+                <div
+                  className={`p-3.5 rounded-xl border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs font-mono transition-all ${
+                    surplusAnalysis.isProfitable
+                      ? "bg-[#091510] border-emerald-500/30 text-emerald-300 shadow-[0_0_15px_rgba(16,185,129,0.1)]"
+                      : surplusAnalysis.isBreakEven
+                      ? "bg-[#10141d] border-slate-700 text-slate-300"
+                      : "bg-[#18110b] border-amber-500/30 text-amber-300"
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <div
+                      className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${
+                        surplusAnalysis.isProfitable
+                          ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/40"
+                          : surplusAnalysis.isBreakEven
+                          ? "bg-slate-800 text-slate-400 border border-slate-700"
+                          : "bg-amber-500/20 text-amber-400 border border-amber-500/40"
+                      }`}
+                    >
+                      {side === "sell" ? (
+                        <TrendingUp className="w-4 h-4 text-emerald-400" />
+                      ) : (
+                        <TrendingDown className="w-4 h-4 text-cyan-400" />
+                      )}
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <strong className="text-white text-sm">
+                          {side === "sell" ? "Ganancia de Venta (Sobrante):" : "Margen de Compra (Descuento):"}
+                        </strong>
+                        <span
+                          className={`px-2 py-0.5 rounded text-xs font-bold ${
+                            surplusAnalysis.isProfitable
+                              ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
+                              : surplusAnalysis.isBreakEven
+                              ? "bg-slate-800 text-slate-300 border border-slate-700"
+                              : "bg-amber-500/20 text-amber-400 border border-amber-500/30"
+                          }`}
+                        >
+                          {surplusAnalysis.unitDiff >= 0 ? "+" : ""}
+                          {surplusAnalysis.unitDiff.toFixed(2)} {fiatCurrency}/{asset} ({surplusAnalysis.marginPct >= 0 ? "+" : ""}{surplusAnalysis.marginPct.toFixed(2)}%)
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-400 mt-1">
+                        Costo Ref:{" "}
+                        <strong className="text-slate-300">
+                          {effectiveRefRate.toFixed(2)} {fiatCurrency}
+                        </strong>{" "}
+                        · Tu Precio:{" "}
+                        <strong className="text-white">
+                          {currentUnitPrice.toFixed(2)} {fiatCurrency}
+                        </strong>{" "}
+                        · Volumen:{" "}
+                        <strong className="text-white">
+                          {currentCrypto.toFixed(2)} {asset}
+                        </strong>
+                      </p>
+                    </div>
+                  </div>
+
+                  {currentCrypto > 0 && (
+                    <div className="flex items-center gap-4 w-full sm:w-auto justify-between sm:justify-end">
+                      <div className="text-left sm:text-right">
+                        <span className="text-[10px] text-slate-400 block uppercase">
+                          Sobrante Bruto
+                        </span>
+                        <span
+                          className={`text-sm font-bold font-mono ${
+                            surplusAnalysis.isProfitable ? "text-emerald-400" : "text-amber-400"
+                          }`}
+                        >
+                          {surplusAnalysis.grossSurplus >= 0 ? "+" : ""}
+                          {surplusAnalysis.grossSurplus.toLocaleString("en-US", {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2,
+                          })}{" "}
+                          <span className="text-[10px] text-slate-400">{fiatCurrency}</span>
+                        </span>
+                      </div>
+
+                      <div className="p-2.5 rounded-lg bg-[#0e121b] border border-[#1e2638] text-left sm:text-right">
+                        <span className="text-[10px] text-slate-400 block uppercase font-bold">
+                          Ganancia Neta (Final)
+                        </span>
+                        <span
+                          className={`text-base font-bold font-mono ${
+                            surplusAnalysis.netSurplus >= 0 ? "text-[#00ff66]" : "text-amber-400"
+                          }`}
+                        >
+                          {surplusAnalysis.netSurplus >= 0 ? "+" : ""}
+                          {surplusAnalysis.netSurplus.toLocaleString("en-US", {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2,
+                          })}{" "}
+                          <span className="text-xs text-slate-400">{fiatCurrency}</span>
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
             </CardContent>
           </Card>
 
@@ -626,7 +1254,7 @@ export default function NewOperationPage() {
                   <span className="w-6 h-6 rounded-full bg-[#00ff66]/10 text-[#00ff66] text-xs flex items-center justify-center font-mono">
                     3
                   </span>
-                  Desglose de Cargos, Método y Banco Privado
+                  Desglose de Cargos, Comisiones y Banco Privado
                 </div>
                 {activeCommissionRule ? (
                   <Badge variant="neon" className="text-[10px] font-mono">
@@ -640,37 +1268,323 @@ export default function NewOperationPage() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
+              {/* Bloques de Comisiones en Modo Dual (% o Monto Fijo) */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <Input
-                  label={`Comisión Comerciante (${fiatCurrency})`}
-                  type="number"
-                  step="any"
-                  value={merchantFee}
-                  onChange={(e) => setMerchantFee(e.target.value)}
-                  helperText={
-                    activeCommissionRule
-                      ? `Calculada automáticamente con perfil ${country}`
-                      : "Entrada manual libre (sin regla configurada)"
-                  }
-                />
+                {/* 1. Comisión Comerciante */}
+                <div className="p-3.5 rounded-xl bg-[#0c1017] border border-[#1e2636] space-y-2.5 flex flex-col justify-between">
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="text-xs font-mono font-bold text-slate-200">
+                        Comisión Comerciante
+                      </label>
+                      <div className="flex items-center bg-[#141824] p-0.5 rounded border border-[#222838]">
+                        <button
+                          type="button"
+                          onClick={() => setMerchantFeeMode("percent")}
+                          className={`px-2 py-0.5 text-[10px] font-mono font-bold rounded transition-all cursor-pointer ${
+                            merchantFeeMode === "percent"
+                              ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
+                              : "text-slate-400 hover:text-white"
+                          }`}
+                        >
+                          %
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setMerchantFeeMode("fixed")}
+                          className={`px-2 py-0.5 text-[10px] font-mono font-bold rounded transition-all cursor-pointer ${
+                            merchantFeeMode === "fixed"
+                              ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
+                              : "text-slate-400 hover:text-white"
+                          }`}
+                        >
+                          {fiatCurrency}
+                        </button>
+                      </div>
+                    </div>
 
-                <Input
-                  label={`Tarifa del Exchange (${fiatCurrency})`}
-                  type="number"
-                  step="any"
-                  value={exchangeFee}
-                  onChange={(e) => setExchangeFee(e.target.value)}
-                  helperText="Si el exchange cobró tarifa en fiat"
-                />
+                    <div className="flex items-center gap-2">
+                      <div className="relative flex-1">
+                        <Input
+                          type="number"
+                          step="any"
+                          placeholder={merchantFeeMode === "percent" ? "0.50" : "0.00"}
+                          value={merchantFeeMode === "percent" ? merchantFeePercent : merchantFeeFixed}
+                          onChange={(e) =>
+                            merchantFeeMode === "percent"
+                              ? setMerchantFeePercent(e.target.value)
+                              : setMerchantFeeFixed(e.target.value)
+                          }
+                        />
+                      </div>
+                      {merchantFeeMode === "percent" && (
+                        <div className="px-2.5 py-2 rounded-lg bg-[#141824] border border-[#222838] text-xs font-mono font-bold text-emerald-400 shrink-0">
+                          = {computedMerchantFee.toFixed(2)} {fiatCurrency}
+                        </div>
+                      )}
+                    </div>
 
-                <Input
-                  label={`Cargo Método de Pago (${fiatCurrency})`}
-                  type="number"
-                  step="any"
-                  value={paymentCharge}
-                  onChange={(e) => setPaymentCharge(e.target.value)}
-                  helperText="Comisión bancaria / pasarela"
-                />
+                    <div className="flex items-center gap-1 flex-wrap pt-2">
+                      {merchantFeeMode === "percent"
+                        ? ["0", "0.25", "0.50", "1.00", "1.50", "2.00"].map((p) => (
+                            <button
+                              key={p}
+                              type="button"
+                              onClick={() => setMerchantFeePercent(p)}
+                              className={`px-1.5 py-0.5 text-[10px] font-mono rounded border transition-all cursor-pointer ${
+                                merchantFeePercent === p
+                                  ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/40"
+                                  : "bg-[#141824] text-slate-400 border-[#222838] hover:text-white"
+                              }`}
+                            >
+                              {p}%
+                            </button>
+                          ))
+                        : ["0", "10", "25", "50", "100"].map((f) => (
+                            <button
+                              key={f}
+                              type="button"
+                              onClick={() => setMerchantFeeFixed(f)}
+                              className={`px-1.5 py-0.5 text-[10px] font-mono rounded border transition-all cursor-pointer ${
+                                merchantFeeFixed === f
+                                  ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/40"
+                                  : "bg-[#141824] text-slate-400 border-[#222838] hover:text-white"
+                              }`}
+                            >
+                              {f}
+                            </button>
+                          ))}
+                    </div>
+                  </div>
+                  <p className="text-[10px] font-mono text-slate-400 pt-1">
+                    {activeCommissionRule
+                      ? `Regla catálogo ${country}: ${(parseFloat(activeCommissionRule.percentage) * 100).toFixed(2)}%`
+                      : "Comisión adicional a favor del comerciante"}
+                  </p>
+                </div>
+
+                {/* 2. Tarifa del Exchange */}
+                <div className="p-3.5 rounded-xl bg-[#0c1017] border border-[#1e2636] space-y-2.5 flex flex-col justify-between">
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="text-xs font-mono font-bold text-slate-200">
+                        Tarifa del Exchange
+                      </label>
+                      <div className="flex items-center bg-[#141824] p-0.5 rounded border border-[#222838]">
+                        <button
+                          type="button"
+                          onClick={() => setExchangeFeeMode("percent")}
+                          className={`px-2 py-0.5 text-[10px] font-mono font-bold rounded transition-all cursor-pointer ${
+                            exchangeFeeMode === "percent"
+                              ? "bg-blue-500/20 text-blue-300 border border-blue-500/30"
+                              : "text-slate-400 hover:text-white"
+                          }`}
+                        >
+                          %
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setExchangeFeeMode("fixed")}
+                          className={`px-2 py-0.5 text-[10px] font-mono font-bold rounded transition-all cursor-pointer ${
+                            exchangeFeeMode === "fixed"
+                              ? "bg-blue-500/20 text-blue-300 border border-blue-500/30"
+                              : "text-slate-400 hover:text-white"
+                          }`}
+                        >
+                          {fiatCurrency}
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <div className="relative flex-1">
+                        <Input
+                          type="number"
+                          step="any"
+                          placeholder={exchangeFeeMode === "percent" ? "0.10" : "0.00"}
+                          value={exchangeFeeMode === "percent" ? exchangeFeePercent : exchangeFeeFixed}
+                          onChange={(e) =>
+                            exchangeFeeMode === "percent"
+                              ? setExchangeFeePercent(e.target.value)
+                              : setExchangeFeeFixed(e.target.value)
+                          }
+                        />
+                      </div>
+                      {exchangeFeeMode === "percent" && (
+                        <div className="px-2.5 py-2 rounded-lg bg-[#141824] border border-[#222838] text-xs font-mono font-bold text-blue-400 shrink-0">
+                          = {computedExchangeFee.toFixed(2)} {fiatCurrency}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-1 flex-wrap pt-2">
+                      {exchangeFeeMode === "percent"
+                        ? [
+                            { label: "0% (Taker)", val: "0" },
+                            { label: "0.015%", val: "0.015" },
+                            { label: "0.05%", val: "0.05" },
+                            { label: "0.10% (Maker)", val: "0.10" },
+                            { label: "0.20%", val: "0.20" },
+                            { label: "0.35% (Binance)", val: "0.35" },
+                          ].map((p) => (
+                            <button
+                              key={p.val}
+                              type="button"
+                              onClick={() => setExchangeFeePercent(p.val)}
+                              className={`px-1.5 py-0.5 text-[10px] font-mono rounded border transition-all cursor-pointer ${
+                                exchangeFeePercent === p.val
+                                  ? "bg-blue-500/20 text-blue-300 border-blue-500/40"
+                                  : "bg-[#141824] text-slate-400 border-[#222838] hover:text-white"
+                              }`}
+                            >
+                              {p.label}
+                            </button>
+                          ))
+                        : ["0", "5", "10", "20"].map((f) => (
+                            <button
+                              key={f}
+                              type="button"
+                              onClick={() => setExchangeFeeFixed(f)}
+                              className={`px-1.5 py-0.5 text-[10px] font-mono rounded border transition-all cursor-pointer ${
+                                exchangeFeeFixed === f
+                                  ? "bg-blue-500/20 text-blue-300 border-blue-500/40"
+                                  : "bg-[#141824] text-slate-400 border-[#222838] hover:text-white"
+                              }`}
+                            >
+                              {f}
+                            </button>
+                          ))}
+                    </div>
+                  </div>
+                  <p className="text-[10px] font-mono text-slate-400 pt-1">
+                    Tarifa del exchange {exchange} (descuenta del sobrante)
+                  </p>
+                </div>
+
+                {/* 3. Cargo Método de Pago */}
+                <div className="p-3.5 rounded-xl bg-[#0c1017] border border-[#1e2636] space-y-2.5 flex flex-col justify-between">
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="text-xs font-mono font-bold text-slate-200">
+                        Cargo Método de Pago
+                      </label>
+                      <div className="flex items-center bg-[#141824] p-0.5 rounded border border-[#222838]">
+                        <button
+                          type="button"
+                          onClick={() => setPaymentChargeMode("percent")}
+                          className={`px-2 py-0.5 text-[10px] font-mono font-bold rounded transition-all cursor-pointer ${
+                            paymentChargeMode === "percent"
+                              ? "bg-purple-500/20 text-purple-300 border border-purple-500/30"
+                              : "text-slate-400 hover:text-white"
+                          }`}
+                        >
+                          %
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setPaymentChargeMode("fixed")}
+                          className={`px-2 py-0.5 text-[10px] font-mono font-bold rounded transition-all cursor-pointer ${
+                            paymentChargeMode === "fixed"
+                              ? "bg-purple-500/20 text-purple-300 border border-purple-500/30"
+                              : "text-slate-400 hover:text-white"
+                          }`}
+                        >
+                          {fiatCurrency}
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <div className="relative flex-1">
+                        <Input
+                          type="number"
+                          step="any"
+                          placeholder={paymentChargeMode === "percent" ? "0.30" : "0.00"}
+                          value={paymentChargeMode === "percent" ? paymentChargePercent : paymentChargeFixed}
+                          onChange={(e) =>
+                            paymentChargeMode === "percent"
+                              ? setPaymentChargePercent(e.target.value)
+                              : setPaymentChargeFixed(e.target.value)
+                          }
+                        />
+                      </div>
+                      {paymentChargeMode === "percent" && (
+                        <div className="px-2.5 py-2 rounded-lg bg-[#141824] border border-[#222838] text-xs font-mono font-bold text-purple-400 shrink-0">
+                          = {computedPaymentCharge.toFixed(2)} {fiatCurrency}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-1 flex-wrap pt-2">
+                      {paymentChargeMode === "percent"
+                        ? [
+                            { label: "0% (Libre)", val: "0" },
+                            { label: "0.05%", val: "0.05" },
+                            { label: "0.30% (Pago Móvil)", val: "0.30" },
+                            { label: "0.50%", val: "0.50" },
+                          ].map((p) => (
+                            <button
+                              key={p.val}
+                              type="button"
+                              onClick={() => setPaymentChargePercent(p.val)}
+                              className={`px-1.5 py-0.5 text-[10px] font-mono rounded border transition-all cursor-pointer ${
+                                paymentChargePercent === p.val
+                                  ? "bg-purple-500/20 text-purple-300 border-purple-500/40"
+                                  : "bg-[#141824] text-slate-400 border-[#222838] hover:text-white"
+                              }`}
+                            >
+                              {p.label}
+                            </button>
+                          ))
+                        : ["0", "2", "5", "10"].map((f) => (
+                            <button
+                              key={f}
+                              type="button"
+                              onClick={() => setPaymentChargeFixed(f)}
+                              className={`px-1.5 py-0.5 text-[10px] font-mono rounded border transition-all cursor-pointer ${
+                                paymentChargeFixed === f
+                                  ? "bg-purple-500/20 text-purple-300 border-purple-500/40"
+                                  : "bg-[#141824] text-slate-400 border-[#222838] hover:text-white"
+                              }`}
+                            >
+                              {f}
+                            </button>
+                          ))}
+                    </div>
+                  </div>
+                  <p className="text-[10px] font-mono text-slate-400 pt-1">
+                    Comisión bancaria o pasarela (descuenta del sobrante)
+                  </p>
+                </div>
+              </div>
+
+              {/* Resumen de Liquidación y Desglose Financiero */}
+              <div className="p-3.5 rounded-xl bg-[#090c12] border border-[#1b2332] text-xs font-mono space-y-2">
+                <div className="flex items-center justify-between text-slate-400 text-[11px]">
+                  <span>Subtotal Comisiones Deducidas (Exchange + Banco):</span>
+                  <span className="text-rose-400 font-bold">
+                    -{(computedExchangeFee + computedPaymentCharge).toFixed(2)} {fiatCurrency}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between text-slate-400 text-[11px]">
+                  <span>Comisión a Favor del Comerciante:</span>
+                  <span className="text-emerald-400 font-bold">
+                    +{computedMerchantFee.toFixed(2)} {fiatCurrency}
+                  </span>
+                </div>
+                <div className="pt-1.5 border-t border-[#18202d] flex items-center justify-between">
+                  <span className="text-slate-300 font-bold">Impacto Neto de Comisiones en Transacción:</span>
+                  <span
+                    className={`font-bold ${
+                      computedMerchantFee - computedExchangeFee - computedPaymentCharge >= 0
+                        ? "text-emerald-400"
+                        : "text-amber-400"
+                    }`}
+                  >
+                    {computedMerchantFee - computedExchangeFee - computedPaymentCharge >= 0 ? "+" : ""}
+                    {(computedMerchantFee - computedExchangeFee - computedPaymentCharge).toFixed(2)} {fiatCurrency}
+                  </span>
+                </div>
               </div>
 
               {/* Dynamic Payment Method and Bank Filtered by Country */}
@@ -820,11 +1734,19 @@ export default function NewOperationPage() {
               variant="primary"
               size="lg"
               isLoading={isSubmitting}
-              disabled={isSubmitting || isPlanExpired}
-              className={`px-8 ${isPlanExpired ? "opacity-50 cursor-not-allowed bg-slate-700 text-slate-400" : ""}`}
+              disabled={isSubmitting || isPlanExpired || isInsufficientBalance}
+              className={`px-8 ${
+                isPlanExpired || isInsufficientBalance
+                  ? "opacity-50 cursor-not-allowed bg-slate-750 text-slate-400"
+                  : ""
+              }`}
             >
               <Save className="w-4 h-4 mr-2" />
-              {isPlanExpired ? "Prueba Finalizada (Requiere Plan)" : "Guardar Operación"}
+              {isPlanExpired
+                ? "Prueba Finalizada (Requiere Plan)"
+                : isInsufficientBalance
+                ? "Fondos Insuficientes"
+                : "Guardar Operación"}
             </Button>
           </div>
         </form>

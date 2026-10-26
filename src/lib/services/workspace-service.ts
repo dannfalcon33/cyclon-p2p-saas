@@ -52,6 +52,8 @@ export async function provisionWorkspaceForUser(
       primaryCountry: "VE",
       timezone: "America/Caracas",
       enabledFiatCurrencies: ["VES", "USD"],
+      initialCryptoBalances: { USDT: "0.00" },
+      initialFiatBalances: { VES: "1000000.00", USD: "2000.00" },
     })
     .returning();
 

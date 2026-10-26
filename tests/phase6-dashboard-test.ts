@@ -323,6 +323,63 @@ async function runPhase6Tests() {
   }
   console.log("   ✅ Aislamiento multinquilino verificado al 100%: Workspace Beta tiene 0 datos de Alpha.");
 
+  // -------------------------------------------------------------------------
+  // TEST 7: Control de Capital Cripto en Tiempo Real (USDT Disponible = Compras - Ventas)
+  // -------------------------------------------------------------------------
+  console.log("7️⃣ Probando Control de Capital Cripto (USDT Disponible = Compras - Ventas)...");
+  // En Alpha:
+  // Compras históricas completadas: Op 1 (100) + Op 2 (200) + Op 7 (80) = 380.00 USDT
+  // Ventas históricas completadas:  Op 3 (150) = 150.00 USDT
+  // Capital Disponible: 380 - 150 = 230.00 USDT
+  const usdtVolume = metrics30d.cryptoVolumes.find((c) => c.symbol === "USDT");
+  if (!usdtVolume) {
+    throw new Error("Métricas de USDT no encontradas en cryptoVolumes.");
+  }
+
+  if (parseFloat(usdtVolume.availableAsset) !== 230) {
+    throw new Error(`Expected availableAsset 230.00 USDT, got ${usdtVolume.availableAsset}`);
+  }
+  if (parseFloat(usdtVolume.allTimeBuy) !== 380) {
+    throw new Error(`Expected allTimeBuy 380.00 USDT, got ${usdtVolume.allTimeBuy}`);
+  }
+  if (parseFloat(usdtVolume.allTimeSell) !== 150) {
+    throw new Error(`Expected allTimeSell 150.00 USDT, got ${usdtVolume.allTimeSell}`);
+  }
+  if (parseFloat(metrics30d.capitalSummary.availableBalance) !== 230) {
+    throw new Error(`Expected capitalSummary.availableBalance 230.00 USDT, got ${metrics30d.capitalSummary.availableBalance}`);
+  }
+
+  console.log(`   - Compras Cripto Acumuladas:  +${usdtVolume.allTimeBuy} USDT`);
+  console.log(`   - Ventas Cripto Acumuladas:   -${usdtVolume.allTimeSell} USDT`);
+  console.log(`   - Capital USDT Disponible:    ${usdtVolume.availableAsset} USDT`);
+  console.log("   ✅ Cálculo de capital disponible verificado: Compras - Ventas con total exactitud.\n");
+
+  // -------------------------------------------------------------------------
+  // TEST 8: Casilla de Ganancias en Moneda Fiat (Spread Realizado + Comisiones Netas)
+  // -------------------------------------------------------------------------
+  console.log("8️⃣ Probando Casilla de Ganancias en Moneda Fiat (Spread Realizado + Comisiones Netas)...");
+  // En Alpha 30d:
+  // Par USDT/VES:
+  // Matched USDT = min(300, 150) = 150 USDT
+  // Spread = 41.00 - 39.00 = +2.00 VES/USDT
+  // Realized Spread Profit = 150 * 2.00 = 300.00 VES
+  // Net Fees = 178.50 - 23.00 - 7.00 = 148.50 VES
+  // Net Fiat Profit = 300.00 + 148.50 = 448.50 VES
+  if (vesMetric.realizedSpreadProfit !== "300.00") {
+    throw new Error(`Expected realizedSpreadProfit '300.00', got '${vesMetric.realizedSpreadProfit}'`);
+  }
+  if (vesMetric.netFees !== "148.50") {
+    throw new Error(`Expected netFees '148.50', got '${vesMetric.netFees}'`);
+  }
+  if (vesMetric.netFiatProfit !== "448.50") {
+    throw new Error(`Expected netFiatProfit '448.50', got '${vesMetric.netFiatProfit}'`);
+  }
+
+  console.log(`   - Ganancia Realizada por Spread: +${vesMetric.realizedSpreadProfit} VES`);
+  console.log(`   - Comisiones Netas Obtenidas:    +${vesMetric.netFees} VES`);
+  console.log(`   - Ganancia Total Neta en Fiat:   +${vesMetric.netFiatProfit} VES`);
+  console.log("   ✅ Casilla de ganancias en fiat derivada y verificada con exactitud matemática.");
+
   console.log("\n=================================================");
   console.log("🎉 TODAS LAS PRUEBAS DE LA FASE 6 HAN PASADO (100% OK)");
   console.log("=================================================\n");

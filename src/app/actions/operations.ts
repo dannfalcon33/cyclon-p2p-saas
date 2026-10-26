@@ -13,6 +13,7 @@ import {
   updateOperation,
   cancelOperation,
   getOperationsSummary,
+  getWorkspaceAvailableBalances,
   CreateOperationInput,
   OperationFilters,
   UpdateOperationInput,
@@ -159,4 +160,12 @@ export async function cancelOperationAction(id: string, reason?: string) {
   revalidatePath("/app");
 
   return cancelled;
+}
+
+/**
+ * 6. Action para Consultar Saldos y Capital Disponible en tiempo real
+ */
+export async function fetchWorkspaceBalancesAction() {
+  const workspaceId = await resolveWorkspaceId();
+  return getWorkspaceAvailableBalances(workspaceId);
 }

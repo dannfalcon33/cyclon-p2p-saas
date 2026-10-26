@@ -25,6 +25,7 @@ import {
   AlertCircle,
   ExternalLink,
   Zap,
+  Wallet,
 } from "lucide-react";
 import { getDashboardMetricsAction } from "@/app/actions/metrics";
 import {
@@ -209,30 +210,49 @@ export default function MerchantDashboardPage() {
       )}
 
       {/* 3. Tarjetas KPI Principales */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* KPI 1: Operaciones Completadas */}
-        <Card className="bg-[#10131a] border-[#1e2433]">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+        {/* KPI 1: Capital Cripto Disponible (Inventario en Cartera) */}
+        <Card className="bg-[#10131a] border-[#1e2433] relative overflow-hidden group hover:border-[#00ff66]/40 transition-all duration-200">
+          <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-[#00ff66] to-cyan-400" />
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <span className="text-xs font-mono text-slate-400 uppercase">Operaciones Completadas</span>
-            <CheckCircle2 className="w-4 h-4 text-[#00ff66]" />
+            <span className="text-xs font-mono text-slate-400 uppercase flex items-center gap-1.5">
+              USDT Disponible
+            </span>
+            <div className="w-6 h-6 rounded-md bg-[#00ff66]/10 border border-[#00ff66]/30 flex items-center justify-center text-[#00ff66] shadow-[0_0_10px_rgba(0,255,102,0.2)]">
+              <Wallet className="w-3.5 h-3.5" />
+            </div>
           </CardHeader>
           <CardContent>
             {isLoading ? (
-              <Skeleton className="h-8 w-24 mb-2" />
+              <Skeleton className="h-8 w-32 mb-2" />
             ) : (
-              <div className="text-2xl font-bold font-mono text-white">
-                {metrics?.kpis.completedOperations ?? 0}
-              </div>
+              <>
+                <div className="text-2xl font-bold font-mono text-[#00ff66] flex items-baseline gap-1.5">
+                  {parseFloat(metrics?.capitalSummary?.availableBalance || "0").toLocaleString("en-US", {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 4,
+                  })}
+                  <span className="text-xs text-slate-400 font-normal">
+                    {metrics?.capitalSummary?.primarySymbol || "USDT"}
+                  </span>
+                </div>
+                <div className="flex items-center gap-1.5 mt-1 text-[11px] font-mono text-slate-400">
+                  <span className="text-emerald-400 font-semibold flex items-center">
+                    +{parseFloat(metrics?.capitalSummary?.allTimeBuy || "0").toLocaleString("en-US", {
+                      maximumFractionDigits: 2,
+                    })}
+                  </span>
+                  <span>Comp.</span>
+                  <span>•</span>
+                  <span className="text-rose-400 font-semibold flex items-center">
+                    -{parseFloat(metrics?.capitalSummary?.allTimeSell || "0").toLocaleString("en-US", {
+                      maximumFractionDigits: 2,
+                    })}
+                  </span>
+                  <span>Vent.</span>
+                </div>
+              </>
             )}
-            <div className="flex items-center gap-2 text-[11px] font-mono text-slate-400 mt-1">
-              <span className="text-amber-400 flex items-center gap-1">
-                <Clock className="w-3 h-3" /> {metrics?.kpis.pendingOperations ?? 0} pend.
-              </span>
-              <span>•</span>
-              <span className="text-slate-400 flex items-center gap-1">
-                <Ban className="w-3 h-3 text-red-400" /> {metrics?.kpis.cancelledOperations ?? 0} canc.
-              </span>
-            </div>
           </CardContent>
         </Card>
 
@@ -240,7 +260,7 @@ export default function MerchantDashboardPage() {
         <Card className="bg-[#10131a] border-[#1e2433]">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <span className="text-xs font-mono text-slate-400 uppercase">
-              Volumen Cripto {primaryCrypto ? `(${primaryCrypto.symbol})` : ""}
+              Volumen Cripto {primaryCrypto ? `(${primaryCrypto.symbol})` : "(USDT)"}
             </span>
             <ArrowLeftRight className="w-4 h-4 text-cyan-400" />
           </CardHeader>
@@ -275,7 +295,7 @@ export default function MerchantDashboardPage() {
                 </div>
               </>
             ) : (
-              <div className="text-slate-400 text-sm font-mono py-2">Sin volumen</div>
+              <div className="text-slate-400 text-sm font-mono py-2">0.00 USDT</div>
             )}
           </CardContent>
         </Card>
@@ -318,11 +338,61 @@ export default function MerchantDashboardPage() {
           </CardContent>
         </Card>
 
-        {/* KPI 4: Comisiones Generadas */}
+        {/* KPI 4: Ganancia Realizada en Fiat (Casilla de Ganancias en Moneda Local) */}
+        <Card className="bg-[#10131a] border-[#1e2433] relative overflow-hidden group hover:border-emerald-500/50 transition-all duration-200">
+          <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-emerald-400 via-teal-300 to-[#00ff66]" />
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <span className="text-xs font-mono text-slate-300 uppercase font-semibold flex items-center gap-1.5">
+              Ganancia Fiat ({metrics?.selectedFiatCurrency || "VES"})
+            </span>
+            <div className="w-6 h-6 rounded-md bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shadow-[0_0_10px_rgba(16,185,129,0.2)]">
+              <TrendingUp className="w-3.5 h-3.5" />
+            </div>
+          </CardHeader>
+          <CardContent>
+            {isLoading ? (
+              <Skeleton className="h-8 w-32 mb-2" />
+            ) : activeFiatMetric ? (
+              <>
+                <div
+                  className={`text-2xl font-bold font-mono flex items-baseline gap-1.5 ${
+                    parseFloat(activeFiatMetric.netFiatProfit) >= 0
+                      ? "text-[#00ff66]"
+                      : "text-rose-400"
+                  }`}
+                >
+                  {parseFloat(activeFiatMetric.netFiatProfit) >= 0 ? "+" : ""}
+                  {parseFloat(activeFiatMetric.netFiatProfit).toLocaleString("en-US", {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  })}
+                  <span className="text-xs text-slate-400 font-normal">
+                    {activeFiatMetric.currency}
+                  </span>
+                </div>
+                <div className="flex items-center gap-1.5 mt-1 text-[10px] font-mono text-slate-400 truncate">
+                  <span className="text-teal-300">
+                    Spread: +{parseFloat(activeFiatMetric.realizedSpreadProfit).toLocaleString("en-US", { maximumFractionDigits: 0 })}
+                  </span>
+                  <span>•</span>
+                  <span className="text-emerald-400">
+                    Comis: +{parseFloat(activeFiatMetric.netFees).toLocaleString("en-US", { maximumFractionDigits: 0 })}
+                  </span>
+                </div>
+              </>
+            ) : (
+              <div className="text-slate-400 text-sm font-mono py-2">
+                0.00 {metrics?.selectedFiatCurrency}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* KPI 5: Comisiones Generadas */}
         <Card className="bg-[#10131a] border-[#1e2433]">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <span className="text-xs font-mono text-slate-400 uppercase">
-              Comisión Comerciante ({metrics?.selectedFiatCurrency || "VES"})
+              Comisión ({metrics?.selectedFiatCurrency || "VES"})
             </span>
             <Sliders className="w-4 h-4 text-[#00ff66]" />
           </CardHeader>
@@ -345,6 +415,32 @@ export default function MerchantDashboardPage() {
             ) : (
               <div className="text-slate-400 text-sm font-mono py-2">0.00 {metrics?.selectedFiatCurrency}</div>
             )}
+          </CardContent>
+        </Card>
+
+        {/* KPI 5: Operaciones P2P */}
+        <Card className="bg-[#10131a] border-[#1e2433]">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <span className="text-xs font-mono text-slate-400 uppercase">Operaciones P2P</span>
+            <CheckCircle2 className="w-4 h-4 text-[#00ff66]" />
+          </CardHeader>
+          <CardContent>
+            {isLoading ? (
+              <Skeleton className="h-8 w-24 mb-2" />
+            ) : (
+              <div className="text-2xl font-bold font-mono text-white">
+                {metrics?.kpis.completedOperations ?? 0}
+              </div>
+            )}
+            <div className="flex items-center gap-2 text-[11px] font-mono text-slate-400 mt-1">
+              <span className="text-amber-400 flex items-center gap-1">
+                <Clock className="w-3 h-3" /> {metrics?.kpis.pendingOperations ?? 0} pend.
+              </span>
+              <span>•</span>
+              <span className="text-slate-400 flex items-center gap-1">
+                <Ban className="w-3 h-3 text-red-400" /> {metrics?.kpis.cancelledOperations ?? 0} canc.
+              </span>
+            </div>
           </CardContent>
         </Card>
       </div>
@@ -587,46 +683,79 @@ export default function MerchantDashboardPage() {
         </Card>
       </div>
 
-      {/* 7. Resumen de Criptoactivos Registrados */}
+      {/* 7. Resumen de Criptoactivos & Control de Inventario */}
       {metrics && metrics.cryptoVolumes.length > 0 && (
         <Card className="bg-[#10131a] border-[#1e2433]">
           <CardHeader className="flex flex-row items-center justify-between pb-3">
-            <CardTitle className="text-sm font-semibold flex items-center gap-2">
-              <Layers className="w-4 h-4 text-[#00ff66]" />
-              Resumen de Criptoactivos
-            </CardTitle>
-            <span className="text-xs font-mono text-slate-400">
-              {metrics.cryptoVolumes.length} activos operados
-            </span>
+            <div>
+              <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                <Layers className="w-4 h-4 text-[#00ff66]" />
+                Resumen de Criptoactivos & Inventario
+              </CardTitle>
+              <p className="text-xs text-slate-400 mt-0.5">
+                Control de capital disponible en tiempo real: compras acumuladas menos ventas operadas.
+              </p>
+            </div>
+            <Badge variant="neutral" className="text-xs font-mono">
+              {metrics.cryptoVolumes.length} {metrics.cryptoVolumes.length === 1 ? "activo" : "activos"}
+            </Badge>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
               {metrics.cryptoVolumes.map((c) => (
                 <div
                   key={c.symbol}
-                  className="p-3.5 rounded-xl bg-[#090b10] border border-[#1b2333] space-y-1.5"
+                  className="p-3.5 rounded-xl bg-[#090b10] border border-[#1b2333] space-y-2.5 hover:border-[#00ff66]/30 transition-all duration-200"
                 >
                   <div className="flex items-center justify-between">
-                    <span className="font-mono font-bold text-white text-sm">
+                    <span className="font-mono font-bold text-white text-sm flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-[#00ff66] animate-pulse" />
                       {c.symbol}
                     </span>
-                    <span className="text-xs font-mono text-slate-400">
-                      {c.operationsCount} {c.operationsCount === 1 ? "op" : "ops"}
+                    <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[#161c28] text-slate-300 border border-[#212a3d]">
+                      {c.operationsCount} {c.operationsCount === 1 ? "op en período" : "ops en período"}
                     </span>
                   </div>
-                  <div className="text-lg font-bold font-mono text-cyan-400">
-                    {parseFloat(c.totalAsset).toLocaleString("en-US", {
-                      minimumFractionDigits: 2,
-                      maximumFractionDigits: 6,
-                    })}{" "}
-                    <span className="text-xs text-slate-400">{c.symbol}</span>
+
+                  {/* Saldo disponible en inventario */}
+                  <div className="p-2.5 rounded-lg bg-[#0f141f] border border-[#1c273a]">
+                    <div className="flex items-center justify-between text-[11px] font-mono text-slate-400 mb-1">
+                      <span className="flex items-center gap-1">
+                        <Wallet className="w-3 h-3 text-[#00ff66]" />
+                        Capital Disponible:
+                      </span>
+                      <span className="text-[10px] text-emerald-400 font-semibold uppercase">En Cartera</span>
+                    </div>
+                    <div className="text-xl font-bold font-mono text-[#00ff66]">
+                      {parseFloat(c.availableAsset).toLocaleString("en-US", {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 6,
+                      })}{" "}
+                      <span className="text-xs text-slate-400 font-normal">{c.symbol}</span>
+                    </div>
                   </div>
+
+                  {/* Desglose de cálculo de compras y ventas acumuladas */}
+                  <div className="grid grid-cols-2 gap-2 text-xs font-mono">
+                    <div className="p-2 rounded bg-[#121622] border border-[#1c2333]">
+                      <span className="text-[10px] text-slate-400 block uppercase">Total Comprado (+)</span>
+                      <span className="text-emerald-400 font-bold">
+                        {parseFloat(c.allTimeBuy).toLocaleString("en-US", { maximumFractionDigits: 4 })}
+                      </span>
+                    </div>
+                    <div className="p-2 rounded bg-[#121622] border border-[#1c2333]">
+                      <span className="text-[10px] text-slate-400 block uppercase">Total Vendido (-)</span>
+                      <span className="text-rose-400 font-bold">
+                        {parseFloat(c.allTimeSell).toLocaleString("en-US", { maximumFractionDigits: 4 })}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Volumen operado en período */}
                   <div className="flex items-center justify-between text-[11px] font-mono text-slate-400 pt-1 border-t border-[#161d2b]">
-                    <span className="text-emerald-400">
-                      Compra: {parseFloat(c.buyAsset).toLocaleString("en-US", { maximumFractionDigits: 4 })}
-                    </span>
-                    <span className="text-blue-400">
-                      Venta: {parseFloat(c.sellAsset).toLocaleString("en-US", { maximumFractionDigits: 4 })}
+                    <span>Volumen Rotado ({metrics.periodLabel}):</span>
+                    <span className="text-cyan-400 font-bold">
+                      {parseFloat(c.totalAsset).toLocaleString("en-US", { maximumFractionDigits: 4 })} {c.symbol}
                     </span>
                   </div>
                 </div>

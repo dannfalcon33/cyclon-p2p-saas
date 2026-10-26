@@ -14,7 +14,22 @@ export interface CryptoAssetVolume {
   totalAsset: string;
   buyAsset: string;
   sellAsset: string;
+  periodNetAsset: string;
+  availableAsset: string;
+  allTimeBuy: string;
+  allTimeSell: string;
   operationsCount: number;
+}
+
+export interface CapitalMetrics {
+  primarySymbol: string;
+  availableBalance: string;
+  periodNetChange: string;
+  allTimeBuy: string;
+  allTimeSell: string;
+  periodBuy: string;
+  periodSell: string;
+  periodVolume: string;
 }
 
 export interface FiatCurrencyMetrics {
@@ -27,6 +42,10 @@ export interface FiatCurrencyMetrics {
   exchangeFee: string;
   paymentCharge: string;
   totalFees: string;
+  netFees: string;
+  realizedSpreadProfit: string;
+  netFiatProfit: string;
+  availableFiat: string;
   // Tasas promedio ponderadas (fiat / cripto) por activo para esta divisa
   ratesByAsset: Record<
     string,
@@ -77,6 +96,7 @@ export interface MerchantDashboardMetrics {
     pendingOperations: number;
     cancelledOperations: number;
   };
+  capitalSummary: CapitalMetrics;
   cryptoVolumes: CryptoAssetVolume[];
   fiatMetrics: Record<string, FiatCurrencyMetrics>;
   activeFiatMetric: FiatCurrencyMetrics | null;
@@ -167,6 +187,8 @@ export async function getMerchantDashboardMetrics(
     where: eq(schema.workspaceSettings.workspaceId, workspaceId),
   });
   const configuredFiats = (settings?.enabledFiatCurrencies as string[]) || ["VES", "USD"];
+  const initCrypto = (settings?.initialCryptoBalances as Record<string, string>) || {};
+  const initFiat = (settings?.initialFiatBalances as Record<string, string>) || {};
 
   // Conjunto de divisas observadas en operaciones + configuradas
   const fiatSet = new Set<string>(configuredFiats);
@@ -180,6 +202,98 @@ export async function getMerchantDashboardMetrics(
     options.fiatCurrency && availableFiatCurrencies.includes(options.fiatCurrency)
       ? options.fiatCurrency
       : availableFiatCurrencies[0] || "VES";
+
+  // 3b. Obtener balance histórico acumulado por activo cripto (operaciones completadas del workspace en todo el historial)
+  // Regla clave: El capital disponible del usuario es la suma acumulada de compras menos ventas completadas más capital inicial
+  const allTimeCryptoOps = await db
+    .select({
+      assetSymbol: schema.p2pOperations.assetSymbol,
+      operationSide: schema.p2pOperations.operationSide,
+      totalAmount: sql<string>`coalesce(sum(${schema.p2pOperations.assetAmount}), 0)`,
+      count: sql<number>`count(*)::int`,
+    })
+    .from(schema.p2pOperations)
+    .where(
+      and(
+        eq(schema.p2pOperations.workspaceId, workspaceId),
+        eq(schema.p2pOperations.status, "completed")
+      )
+    )
+    .groupBy(schema.p2pOperations.assetSymbol, schema.p2pOperations.operationSide);
+
+  const allTimeInventoryMap: Record<
+    string,
+    { bought: number; sold: number; available: number; totalOps: number }
+  > = {};
+
+  for (const row of allTimeCryptoOps) {
+    const sym = row.assetSymbol.toUpperCase();
+    if (!allTimeInventoryMap[sym]) {
+      allTimeInventoryMap[sym] = { bought: 0, sold: 0, available: 0, totalOps: 0 };
+    }
+    const amt = parseFloat(row.totalAmount || "0");
+    const count = Number(row.count || 0);
+    allTimeInventoryMap[sym].totalOps += count;
+    if (row.operationSide === "buy") {
+      allTimeInventoryMap[sym].bought += amt;
+    } else if (row.operationSide === "sell") {
+      allTimeInventoryMap[sym].sold += amt;
+    }
+  }
+
+  for (const sym of Object.keys(allTimeInventoryMap)) {
+    const initVal = parseFloat(initCrypto[sym] || "0");
+    allTimeInventoryMap[sym].available =
+      initVal + allTimeInventoryMap[sym].bought - allTimeInventoryMap[sym].sold;
+  }
+
+  // 3c. Obtener balance histórico acumulado en fiat para determinar saldo fiat disponible en tiempo real
+  const allTimeFiatOps = await db
+    .select({
+      fiatCurrency: schema.p2pOperations.fiatCurrency,
+      operationSide: schema.p2pOperations.operationSide,
+      totalAmount: sql<string>`coalesce(sum(${schema.p2pOperations.fiatAmount}), 0)`,
+      totalMerchFee: sql<string>`coalesce(sum(${schema.p2pOperations.merchantFee}), 0)`,
+      totalExchFee: sql<string>`coalesce(sum(${schema.p2pOperations.exchangeFee}), 0)`,
+      totalPayCharge: sql<string>`coalesce(sum(${schema.p2pOperations.paymentCharge}), 0)`,
+    })
+    .from(schema.p2pOperations)
+    .where(
+      and(
+        eq(schema.p2pOperations.workspaceId, workspaceId),
+        eq(schema.p2pOperations.status, "completed")
+      )
+    )
+    .groupBy(schema.p2pOperations.fiatCurrency, schema.p2pOperations.operationSide);
+
+  const allTimeFiatMap: Record<
+    string,
+    { received: number; spent: number; netFees: number; available: number }
+  > = {};
+
+  for (const row of allTimeFiatOps) {
+    const fiat = row.fiatCurrency.toUpperCase();
+    if (!allTimeFiatMap[fiat]) {
+      allTimeFiatMap[fiat] = { received: 0, spent: 0, netFees: 0, available: 0 };
+    }
+    const amt = parseFloat(row.totalAmount || "0");
+    const mFee = parseFloat(row.totalMerchFee || "0");
+    const eFee = parseFloat(row.totalExchFee || "0");
+    const pFee = parseFloat(row.totalPayCharge || "0");
+    if (row.operationSide === "sell") {
+      allTimeFiatMap[fiat].received += amt;
+    } else if (row.operationSide === "buy") {
+      allTimeFiatMap[fiat].spent += amt;
+    }
+    allTimeFiatMap[fiat].netFees += mFee - eFee - pFee;
+  }
+
+  for (const f of availableFiatCurrencies) {
+    const initAmt = parseFloat(initFiat[f] || "0");
+    const cur = allTimeFiatMap[f] || { received: 0, spent: 0, netFees: 0, available: 0 };
+    cur.available = initAmt + cur.received - cur.spent + cur.netFees;
+    allTimeFiatMap[f] = cur;
+  }
 
   // 4. Conteo de operaciones por estado
   let totalCount = 0;
@@ -322,17 +436,50 @@ export async function getMerchantDashboardMetrics(
     methodCounts[methodName] = (methodCounts[methodName] || 0) + 1;
   }
 
-  // 6. Formatear Volúmenes Cripto
-  const cryptoVolumes: CryptoAssetVolume[] = Object.keys(cryptoMap).map((sym) => ({
-    symbol: sym,
-    totalAsset: toFixedStr(cryptoMap[sym].total, 8),
-    buyAsset: toFixedStr(cryptoMap[sym].buy, 8),
-    sellAsset: toFixedStr(cryptoMap[sym].sell, 8),
-    operationsCount: cryptoMap[sym].count,
-  }));
+  // 6. Formatear Volúmenes Cripto y Balance de Capital Disponible
+  const allCryptoSymbols = new Set<string>([
+    ...Object.keys(cryptoMap),
+    ...Object.keys(allTimeInventoryMap),
+  ]);
 
-  // Ordenar cripto por conteo descendente
-  cryptoVolumes.sort((a, b) => b.operationsCount - a.operationsCount);
+  const cryptoVolumes: CryptoAssetVolume[] = Array.from(allCryptoSymbols).map((sym) => {
+    const periodData = cryptoMap[sym] || { total: 0, buy: 0, sell: 0, count: 0 };
+    const allTimeData = allTimeInventoryMap[sym] || { bought: 0, sold: 0, available: 0, totalOps: 0 };
+
+    return {
+      symbol: sym,
+      totalAsset: toFixedStr(periodData.total, 8),
+      buyAsset: toFixedStr(periodData.buy, 8),
+      sellAsset: toFixedStr(periodData.sell, 8),
+      periodNetAsset: toFixedStr(periodData.buy - periodData.sell, 8),
+      availableAsset: toFixedStr(allTimeData.available, 8),
+      allTimeBuy: toFixedStr(allTimeData.bought, 8),
+      allTimeSell: toFixedStr(allTimeData.sold, 8),
+      operationsCount: periodData.count,
+    };
+  });
+
+  // Ordenar cripto: priorizar USDT de primero, luego por volumen en período
+  cryptoVolumes.sort((a, b) => {
+    if (a.symbol === "USDT" && b.symbol !== "USDT") return -1;
+    if (b.symbol === "USDT" && a.symbol !== "USDT") return 1;
+    return b.operationsCount - a.operationsCount;
+  });
+
+  // Resumen principal de capital para el panel de comerciante (USDT como activo por defecto)
+  const primaryCrypto =
+    cryptoVolumes.find((c) => c.symbol === "USDT") || cryptoVolumes[0] || null;
+
+  const capitalSummary: CapitalMetrics = {
+    primarySymbol: primaryCrypto ? primaryCrypto.symbol : "USDT",
+    availableBalance: primaryCrypto ? primaryCrypto.availableAsset : "0.00000000",
+    periodNetChange: primaryCrypto ? primaryCrypto.periodNetAsset : "0.00000000",
+    allTimeBuy: primaryCrypto ? primaryCrypto.allTimeBuy : "0.00000000",
+    allTimeSell: primaryCrypto ? primaryCrypto.allTimeSell : "0.00000000",
+    periodBuy: primaryCrypto ? primaryCrypto.buyAsset : "0.00000000",
+    periodSell: primaryCrypto ? primaryCrypto.sellAsset : "0.00000000",
+    periodVolume: primaryCrypto ? primaryCrypto.totalAsset : "0.00000000",
+  };
 
   // 7. Formatear Métricas Fiat
   const formattedFiatMetrics: Record<string, FiatCurrencyMetrics> = {};
@@ -348,6 +495,7 @@ export async function getMerchantDashboardMetrics(
       }
     > = {};
 
+    let realizedSpreadProfit = 0;
     for (const asset of Object.keys(raw.ratesAccumulator)) {
       const r = raw.ratesAccumulator[asset];
       const buyAvg = r.buyAsset > 0 ? r.buyFiat / r.buyAsset : null;
@@ -361,9 +509,17 @@ export async function getMerchantDashboardMetrics(
         overallAvgRate: overallAvg !== null ? toFixedStr(overallAvg, 4) : null,
         grossSpread: spread !== null ? toFixedStr(spread, 4) : null,
       };
+
+      if (buyAvg !== null && sellAvg !== null && r.buyAsset > 0 && r.sellAsset > 0) {
+        const matchedAsset = Math.min(r.buyAsset, r.sellAsset);
+        realizedSpreadProfit += matchedAsset * (sellAvg - buyAvg);
+      }
     }
 
     const totalFees = raw.merchantFee + raw.exchangeFee + raw.paymentCharge;
+    const netFees = raw.merchantFee - raw.exchangeFee - raw.paymentCharge;
+    const netFiatProfit = realizedSpreadProfit + netFees;
+    const fiatBal = allTimeFiatMap[f]?.available ?? 0;
 
     formattedFiatMetrics[f] = {
       currency: f,
@@ -375,6 +531,10 @@ export async function getMerchantDashboardMetrics(
       exchangeFee: toFixedStr(raw.exchangeFee, 2),
       paymentCharge: toFixedStr(raw.paymentCharge, 2),
       totalFees: toFixedStr(totalFees, 2),
+      netFees: toFixedStr(netFees, 2),
+      realizedSpreadProfit: toFixedStr(realizedSpreadProfit, 2),
+      netFiatProfit: toFixedStr(netFiatProfit, 2),
+      availableFiat: toFixedStr(fiatBal, 2),
       ratesByAsset,
     };
   }
@@ -438,12 +598,13 @@ export async function getMerchantDashboardMetrics(
       pendingOperations: pendingCount,
       cancelledOperations: cancelledCount,
     },
+    capitalSummary,
     cryptoVolumes,
     fiatMetrics: formattedFiatMetrics,
     activeFiatMetric: formattedFiatMetrics[selectedFiat] || null,
     exchangeDistribution,
     paymentMethodDistribution,
     recentOperations,
-    hasOperations: operations.length > 0,
+    hasOperations: operations.length > 0 || Object.keys(allTimeInventoryMap).length > 0,
   };
 }

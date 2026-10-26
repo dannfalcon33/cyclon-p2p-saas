@@ -11,6 +11,7 @@
     "db:push": "drizzle-kit push",
     "db:seed": "tsx src/lib/db/seed.ts",
     "db:studio": "drizzle-kit studio",
+    "db:reset": "tsx scripts/reset-db.ts",
     "auth:bootstrap-owner": "tsx scripts/bootstrap-platform-owner.ts",
     "test:phase3": "tsx tests/phase3-auth-test.ts",
     "test:phase4": "tsx tests/phase4-catalogs-test.ts",

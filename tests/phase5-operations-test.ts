@@ -118,7 +118,47 @@ async function runPhase5Tests() {
   }
   if (!rejectedNegativeFiat) throw new Error("FALLO DE VALIDACIÓN: Se permitió guardar importe fiat negativo");
 
-  console.log("   ✅ Validación server-side estricta: entradas inválidas no llegan a Neon.\n");
+  // Validación de Capital: Bloqueo de venta si el capital en USDT está en 0
+  let rejectedZeroCryptoSell = false;
+  try {
+    await createOperation(wsAlpha.id, {
+      countryCode: "VE",
+      exchangeCode: "binance",
+      operationSide: "sell",
+      assetSymbol: "USDT",
+      assetAmount: 100, // No tiene USDT todavía
+      fiatCurrency: "VES",
+      fiatAmount: 3900,
+    });
+  } catch (err: any) {
+    rejectedZeroCryptoSell = true;
+    console.log(`   ✅ Correctamente bloqueada venta sin activos (USDT = 0): "${err.message}"`);
+  }
+  if (!rejectedZeroCryptoSell) {
+    throw new Error("FALLO DE VALIDACIÓN: Se permitió registrar venta con capital USDT en 0");
+  }
+
+  // Validación de Capital: Bloqueo de compra si el importe fiat excede el saldo fiat disponible
+  let rejectedExcessFiatBuy = false;
+  try {
+    await createOperation(wsAlpha.id, {
+      countryCode: "VE",
+      exchangeCode: "binance",
+      operationSide: "buy",
+      assetSymbol: "USDT",
+      assetAmount: 2000000,
+      fiatCurrency: "VES",
+      fiatAmount: 50000000, // 50,000,000 VES excede saldo fiat disponible
+    });
+  } catch (err: any) {
+    rejectedExcessFiatBuy = true;
+    console.log(`   ✅ Correctamente bloqueada compra que excede saldo fiat: "${err.message}"`);
+  }
+  if (!rejectedExcessFiatBuy) {
+    throw new Error("FALLO DE VALIDACIÓN: Se permitió registrar compra que excede saldo fiat");
+  }
+
+  console.log("   ✅ Validación server-side estricta: entradas inválidas y operaciones sin saldo no llegan a Neon.\n");
 
   // -------------------------------------------------------------------------
   // Test 3: Creación de Operación Válida con Instantáneas Inmutables
@@ -223,6 +263,12 @@ async function runPhase5Tests() {
   // Test 6: Creación de Múltiples Operaciones, Filtros y Paginación
   // -------------------------------------------------------------------------
   console.log("6️⃣ Probando Listado, Filtros Combinados y Paginación...");
+  // Asignar inventario base de BTC a wsAlpha para permitir la venta en la prueba
+  await db
+    .update(schema.workspaceSettings)
+    .set({ initialCryptoBalances: { USDT: "1000.00", BTC: "2.00000000" } })
+    .where(eq(schema.workspaceSettings.workspaceId, wsAlpha.id));
+
   // Crear 2 operaciones más para Alpha (una completada y una pendiente)
   const op2 = await createOperation(wsAlpha.id, {
     countryCode: "CO",
