@@ -12,6 +12,7 @@
     "db:seed": "tsx src/lib/db/seed.ts",
     "db:studio": "drizzle-kit studio",
     "db:reset": "tsx scripts/reset-db.ts",
+    "db:check": "tsx scripts/check-neon-connection.ts",
     "auth:bootstrap-owner": "tsx scripts/bootstrap-platform-owner.ts",
     "test:phase3": "tsx tests/phase3-auth-test.ts",
     "test:phase4": "tsx tests/phase4-catalogs-test.ts",
@@ -21,6 +22,7 @@
     "test:phase8": "tsx tests/phase8-plans-billing-test.ts",
     "test:phase9": "tsx tests/phase9-master-panel-test.ts",
     "test:phase10": "tsx tests/phase10-market-news-test.ts",
+    "test:phase11": "tsx tests/phase11-qa-audit.ts",
     "test:multi-exchange": "tsx tests/multi-exchange-test.ts",
     "test:binance": "tsx tests/binance-p2p-test.ts",
     "db:seed-demo": "tsx scripts/seed-demo-users-and-data.ts"

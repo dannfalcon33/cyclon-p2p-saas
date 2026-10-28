@@ -3,8 +3,8 @@ import { drizzle } from "drizzle-orm/neon-http";
 import * as dotenv from "dotenv";
 import * as schema from "./schema";
 
-dotenv.config({ path: ".env.local" });
-dotenv.config();
+dotenv.config({ path: ".env.local", quiet: true });
+dotenv.config({ quiet: true });
 
 const connectionString = process.env.DATABASE_URL;
 

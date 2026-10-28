@@ -33,13 +33,6 @@ export function proxy(request: NextRequest) {
     }
   }
 
-  // 3. Redirección amigable si un usuario con sesión activa intenta ir a /login o /registro
-  if (pathname === "/login" || pathname === "/registro") {
-    if (isAuthenticated) {
-      return NextResponse.redirect(new URL("/app", request.url));
-    }
-  }
-
   return NextResponse.next();
 }
 
@@ -47,7 +40,5 @@ export const config = {
   matcher: [
     "/app/:path*",
     "/master/:path*",
-    "/login",
-    "/registro",
   ],
 };

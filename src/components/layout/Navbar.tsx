@@ -1,6 +1,5 @@
 import Link from "next/link";
-import { Zap, ShieldCheck } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Zap } from "lucide-react";
 
 export function Navbar() {
   return (
@@ -45,15 +44,17 @@ export function Navbar() {
 
         {/* CTA buttons */}
         <div className="flex items-center gap-3">
-          <Link href="/login">
-            <Button variant="ghost" size="sm">
-              Iniciar Sesión
-            </Button>
+          <Link
+            href="/login"
+            className="inline-flex items-center justify-center font-medium rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[#00ff66]/50 select-none cursor-pointer bg-transparent text-slate-300 hover:bg-[#161922] hover:text-white text-xs px-3 py-1.5 gap-1.5"
+          >
+            Iniciar Sesión
           </Link>
-          <Link href="/registro">
-            <Button variant="primary" size="sm" className="hidden sm:inline-flex">
-              Prueba Gratuita 7 Días
-            </Button>
+          <Link
+            href="/registro"
+            className="hidden sm:inline-flex items-center justify-center rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[#00ff66]/50 select-none cursor-pointer bg-[#00ff66] text-[#08090d] font-semibold hover:bg-[#00e55b] hover:shadow-[0_0_20px_rgba(0,255,102,0.35)] active:scale-[0.98] text-xs px-3 py-1.5 gap-1.5"
+          >
+            Prueba Gratuita 7 Días
           </Link>
         </div>
       </div>

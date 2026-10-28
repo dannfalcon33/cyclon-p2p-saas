@@ -16,8 +16,8 @@ Este plan organiza el desarrollo secuencial del MVP mini-SaaS Cyclon P2P de acue
 - [x] **Fase 7: Motor de comisiones por país y exportaciones Excel (.xlsx)**
 - [x] **Fase 8: Planes comerciales, prueba gratuita de 7 días y checkout simulado**
 - [x] **Fase 9: Panel Master del propietario (`platform_owner`), promociones y auditoría**
-- [ ] **Fase 10: Módulo de mercado y noticias Enterprise (CoinGecko / CryptoCompare)**
-- [ ] **Fase 11: QA exhaustivo, seguridad, tests y pulido de experiencia**
+- [x] **Fase 10: Módulo de mercado y noticias Enterprise (Binance Spot & Klines, P2P Arbitrage, CriptoNoticias RSS)**
+- [x] **Fase 11: QA exhaustivo, seguridad, tests y pulido de experiencia**
 - [ ] **Fase 12: Despliegue en Vercel + Neon y entrega de documentación final**
 
 ---
@@ -77,9 +77,10 @@ Este plan organiza el desarrollo secuencial del MVP mini-SaaS Cyclon P2P de acue
 - **Entregables:** Servicio `crypto-market-service.ts`, Server Actions `market-data.ts`, panel interactivo `/app/mercado` con cotizaciones Spot en tiempo real, gráfico técnico dinámico SVG interactivo (1D, 7D, 1M), tabla de arbitraje P2P para 6 países de Latinoamérica (VES, COP, ARS, BRL, PEN, CLP) y feed de noticias en vivo, test suite automatizada `tests/phase10-market-news-test.ts`, ADR-0011.
 - **Puerta de salida:** Verificación de capacidades Enterprise en servidor probada; cotizaciones reales de Binance en vivo sin datos inventados; gráfico dinámico generado desde Klines; sindicación de noticias en español verificada; 17/17 pruebas superadas al 100%.
 
-### Fase 11: QA y Pruebas
-- **Objetivo:** Suite completa de pruebas unitarias (Vitest) y pruebas de aislamiento multinquilino.
-- **Puerta de salida:** Cero fallos críticos de seguridad o aislamiento.
+### Fase 11: QA, Seguridad y Pruebas Exhaustivas (Completada)
+- **Objetivo:** Suite completa de auditoría estática y dinámica, validación de fórmulas Excel contra inyecciones OWASP, precisión matemática del motor de comisiones, aislamiento multinquilino estricto, protección contra inyección de roles en Better Auth y compilación de producción con Next.js 16 App Router.
+- **Entregables:** Suite de auditoría `tests/phase11-qa-audit.ts` con 31/31 pruebas automatizadas superadas, script `npm run test:phase11`, compilación de producción `npm run build` verificada (21/21 rutas compiladas con cero errores TypeScript).
+- **Puerta de salida:** Cero fallos críticos de seguridad o aislamiento de datos multinquilino; no hay secretos en el repositorio; .env.example creado y documentado; build de producción verificado al 100%.
 
 ### Fase 12: Despliegue y Cierre
 - **Objetivo:** Publicación en Vercel, enlace con Neon, bootstrap del propietario en producción y checklist final.

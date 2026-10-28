@@ -52,7 +52,7 @@ export default function HomePage() {
                   <ArrowRight className="w-4 h-4 ml-1" />
                 </Button>
               </Link>
-              <Link href="/app" id="hero-cta-demo">
+              <Link href="/app" id="hero-cta-demo" prefetch={false}>
                 <Button variant="secondary" size="lg" className="w-full sm:w-auto text-base">
                   Explorar Dashboard Demo
                 </Button>
