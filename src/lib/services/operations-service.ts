@@ -124,12 +124,22 @@ export async function getWorkspaceAvailableBalances(workspaceId: string): Promis
     if (op.operationSide === "buy") {
       cryptoMap[sym].bought += assetAmt;
       fiatMap[fiat].spent += fiatAmt;
+      fiatMap[fiat].fees -= exchFee + payCharge;
     } else if (op.operationSide === "sell") {
       cryptoMap[sym].sold += assetAmt;
       fiatMap[fiat].received += fiatAmt;
+      fiatMap[fiat].fees += merchFee - exchFee - payCharge;
     }
+  }
 
-    fiatMap[fiat].fees += (merchFee - exchFee - payCharge);
+  for (const sym of Object.keys(cryptoMap)) {
+    const c = cryptoMap[sym];
+    c.available = c.initial + c.bought - c.sold;
+  }
+
+  for (const fiat of Object.keys(fiatMap)) {
+    const f = fiatMap[fiat];
+    f.available = f.initial + f.received - f.spent + f.fees;
   }
 
   const ratesAccumulator: Record<string, { buyFiat: number; buyAsset: number; sellFiat: number; sellAsset: number }> = {};
@@ -252,15 +262,19 @@ export async function createOperation(workspaceId: string, input: CreateOperatio
     fiatAmount: fiatNum,
   });
 
+  // Regla de negocio: En las compras (buy) se adquiere el activo para inventario y no existe comisión de ganancia a favor
   const finalMerchantFee =
-    input.merchantFee !== undefined && input.merchantFee !== null
+    input.operationSide === "buy"
+      ? "0.00"
+      : input.merchantFee !== undefined && input.merchantFee !== null
       ? Number(input.merchantFee).toFixed(2)
       : resolvedRule.calculatedFee;
 
   const isOverride =
-    input.merchantFee !== undefined &&
-    input.merchantFee !== null &&
-    Number(input.merchantFee).toFixed(2) !== resolvedRule.calculatedFee;
+    input.operationSide === "buy" ||
+    (input.merchantFee !== undefined &&
+      input.merchantFee !== null &&
+      Number(input.merchantFee).toFixed(2) !== resolvedRule.calculatedFee);
 
   const commissionRuleSnapshot: CommissionRuleSnapshot = {
     ...resolvedRule.snapshot,

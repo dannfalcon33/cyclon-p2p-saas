@@ -1,6 +1,6 @@
 import { db } from "@/lib/db";
 import * as schema from "@/lib/db/schema";
-import { eq, and, gte, lte, desc, sql } from "drizzle-orm";
+import { eq, and, gte, desc, sql } from "drizzle-orm";
 
 export type PeriodFilter = "today" | "7d" | "30d" | "month" | "all";
 
@@ -157,11 +157,14 @@ function toFixedStr(num: number, decimals: number): string {
 
 /**
  * Servicio centralizado para calcular métricas del Dashboard de Comerciante
- * Reglas mandatorias del MVP:
+ * Reglas mandatorias del negocio P2P:
  * 1. Cada divisa fiat se totaliza por separado (cero mezclas de VES, USD, COP, BRL, ARS, etc.).
  * 2. Las operaciones canceladas se contabilizan para auditoría pero se EXCLUYEN de volúmenes operativos.
  * 3. Las tasas promedio son ponderadas por volumen: SUM(fiat) / SUM(asset).
- * 4. Aislamiento total por workspaceId.
+ * 4. En las COMPRAS (buy) se adquiere el activo cripto para inventario y se define el Precio Promedio de Compra (sin generar ganancia).
+ * 5. Las GANANCIAS se generan exclusivamente en las VENTAS (sell), calculando el margen sobre el Precio Promedio de Compra:
+ *    Ganancia = Cantidad Vendida * (Tasa Promedio Venta - Tasa Promedio Compra) - Costos de Venta.
+ * 6. Aislamiento total por workspaceId.
  */
 export async function getMerchantDashboardMetrics(
   workspaceId: string,
@@ -204,7 +207,6 @@ export async function getMerchantDashboardMetrics(
       : availableFiatCurrencies[0] || "VES";
 
   // 3b. Obtener balance histórico acumulado por activo cripto (operaciones completadas del workspace en todo el historial)
-  // Regla clave: El capital disponible del usuario es la suma acumulada de compras menos ventas completadas más capital inicial
   const allTimeCryptoOps = await db
     .select({
       assetSymbol: schema.p2pOperations.assetSymbol,
@@ -247,7 +249,38 @@ export async function getMerchantDashboardMetrics(
       initVal + allTimeInventoryMap[sym].bought - allTimeInventoryMap[sym].sold;
   }
 
-  // 3c. Obtener balance histórico acumulado en fiat para determinar saldo fiat disponible en tiempo real
+  // 3c. Obtener Costo Promedio Histórico de Compra por (divisa fiat, activo cripto)
+  // Permite calcular con exactitud la ganancia al vender incluso si la compra fue en días anteriores al filtro
+  const allTimeBuyRateRows = await db
+    .select({
+      fiatCurrency: schema.p2pOperations.fiatCurrency,
+      assetSymbol: schema.p2pOperations.assetSymbol,
+      totalBuyFiat: sql<string>`coalesce(sum(${schema.p2pOperations.fiatAmount}), 0)`,
+      totalBuyAsset: sql<string>`coalesce(sum(${schema.p2pOperations.assetAmount}), 0)`,
+    })
+    .from(schema.p2pOperations)
+    .where(
+      and(
+        eq(schema.p2pOperations.workspaceId, workspaceId),
+        eq(schema.p2pOperations.status, "completed"),
+        eq(schema.p2pOperations.operationSide, "buy")
+      )
+    )
+    .groupBy(schema.p2pOperations.fiatCurrency, schema.p2pOperations.assetSymbol);
+
+  const allTimeBuyAvgMap: Record<string, Record<string, number>> = {};
+  for (const row of allTimeBuyRateRows) {
+    const fiat = row.fiatCurrency.toUpperCase();
+    const asset = row.assetSymbol.toUpperCase();
+    const bFiat = parseFloat(row.totalBuyFiat || "0");
+    const bAsset = parseFloat(row.totalBuyAsset || "0");
+    if (bAsset > 0) {
+      if (!allTimeBuyAvgMap[fiat]) allTimeBuyAvgMap[fiat] = {};
+      allTimeBuyAvgMap[fiat][asset] = bFiat / bAsset;
+    }
+  }
+
+  // 3d. Obtener balance histórico acumulado en fiat para determinar saldo fiat disponible en tiempo real
   const allTimeFiatOps = await db
     .select({
       fiatCurrency: schema.p2pOperations.fiatCurrency,
@@ -282,10 +315,12 @@ export async function getMerchantDashboardMetrics(
     const pFee = parseFloat(row.totalPayCharge || "0");
     if (row.operationSide === "sell") {
       allTimeFiatMap[fiat].received += amt;
+      allTimeFiatMap[fiat].netFees += mFee - eFee - pFee;
     } else if (row.operationSide === "buy") {
       allTimeFiatMap[fiat].spent += amt;
+      // En compras no hay ganancia ni comisión a favor; solo costos operativos si existieran
+      allTimeFiatMap[fiat].netFees -= eFee + pFee;
     }
-    allTimeFiatMap[fiat].netFees += mFee - eFee - pFee;
   }
 
   for (const f of availableFiatCurrencies) {
@@ -309,7 +344,6 @@ export async function getMerchantDashboardMetrics(
   }
 
   // 5. Agrupaciones para operaciones COMPLETADAS
-  // (Regla: sólo las operaciones completadas suman a volúmenes y tasas)
   const completedOps = operations.filter((op) => op.status === "completed");
 
   // A) Volúmenes Cripto
@@ -329,6 +363,9 @@ export async function getMerchantDashboardMetrics(
       merchantFee: number;
       exchangeFee: number;
       paymentCharge: number;
+      sellMerchantFee: number;
+      sellExchangeFee: number;
+      sellPaymentCharge: number;
       // Para promedios ponderados por criptoactivo
       ratesAccumulator: Record<
         string,
@@ -354,6 +391,9 @@ export async function getMerchantDashboardMetrics(
       merchantFee: 0,
       exchangeFee: 0,
       paymentCharge: 0,
+      sellMerchantFee: 0,
+      sellExchangeFee: 0,
+      sellPaymentCharge: 0,
       ratesAccumulator: {},
     };
   }
@@ -393,17 +433,28 @@ export async function getMerchantDashboardMetrics(
         merchantFee: 0,
         exchangeFee: 0,
         paymentCharge: 0,
+        sellMerchantFee: 0,
+        sellExchangeFee: 0,
+        sellPaymentCharge: 0,
         ratesAccumulator: {},
       };
     }
     fiatMap[fiat].total += fiatAmt;
     fiatMap[fiat].count += 1;
-    fiatMap[fiat].merchantFee += merchFee;
     fiatMap[fiat].exchangeFee += exchFee;
     fiatMap[fiat].paymentCharge += payCharge;
 
-    if (side === "buy") fiatMap[fiat].buy += fiatAmt;
-    if (side === "sell") fiatMap[fiat].sell += fiatAmt;
+    if (side === "buy") {
+      fiatMap[fiat].buy += fiatAmt;
+      // En compras se toma el USDT para tener el activo; no existe ganancia ni comisión a favor en compra
+    }
+    if (side === "sell") {
+      fiatMap[fiat].sell += fiatAmt;
+      fiatMap[fiat].merchantFee += merchFee;
+      fiatMap[fiat].sellMerchantFee += merchFee;
+      fiatMap[fiat].sellExchangeFee += exchFee;
+      fiatMap[fiat].sellPaymentCharge += payCharge;
+    }
 
     // Acumulador de tasas ponderadas: fiat / asset
     if (!fiatMap[fiat].ratesAccumulator[asset]) {
@@ -481,7 +532,7 @@ export async function getMerchantDashboardMetrics(
     periodVolume: primaryCrypto ? primaryCrypto.totalAsset : "0.00000000",
   };
 
-  // 7. Formatear Métricas Fiat
+  // 7. Formatear Métricas Fiat (Ganancias se realizan EXCLUSIVAMENTE en las VENTAS sobre el Precio Promedio de Compra)
   const formattedFiatMetrics: Record<string, FiatCurrencyMetrics> = {};
   for (const f of Object.keys(fiatMap)) {
     const raw = fiatMap[f];
@@ -498,27 +549,36 @@ export async function getMerchantDashboardMetrics(
     let realizedSpreadProfit = 0;
     for (const asset of Object.keys(raw.ratesAccumulator)) {
       const r = raw.ratesAccumulator[asset];
-      const buyAvg = r.buyAsset > 0 ? r.buyFiat / r.buyAsset : null;
+      const periodBuyAvg = r.buyAsset > 0 ? r.buyFiat / r.buyAsset : null;
+      const historicalBuyAvg = allTimeBuyAvgMap[f]?.[asset] ?? null;
+      // Costo promedio de compra efectivo (usa el del período o el histórico de cartera si la compra fue previa)
+      const effectiveBuyAvg = periodBuyAvg ?? historicalBuyAvg;
       const sellAvg = r.sellAsset > 0 ? r.sellFiat / r.sellAsset : null;
       const overallAvg = r.totalAsset > 0 ? r.totalFiat / r.totalAsset : null;
-      const spread = buyAvg !== null && sellAvg !== null ? sellAvg - buyAvg : null;
+      const spread =
+        effectiveBuyAvg !== null && sellAvg !== null ? sellAvg - effectiveBuyAvg : null;
 
       ratesByAsset[asset] = {
-        buyAvgRate: buyAvg !== null ? toFixedStr(buyAvg, 4) : null,
+        buyAvgRate: effectiveBuyAvg !== null ? toFixedStr(effectiveBuyAvg, 4) : null,
         sellAvgRate: sellAvg !== null ? toFixedStr(sellAvg, 4) : null,
         overallAvgRate: overallAvg !== null ? toFixedStr(overallAvg, 4) : null,
         grossSpread: spread !== null ? toFixedStr(spread, 4) : null,
       };
 
-      if (buyAvg !== null && sellAvg !== null && r.buyAsset > 0 && r.sellAsset > 0) {
-        const matchedAsset = Math.min(r.buyAsset, r.sellAsset);
-        realizedSpreadProfit += matchedAsset * (sellAvg - buyAvg);
+      // Regla de negocio: Las compras (buy) NO generan ganancia.
+      // La ganancia se realiza exclusivamente al VENDER (r.sellAsset > 0) con un margen respecto al precio promedio de compra.
+      if (r.sellAsset > 0 && sellAvg !== null && effectiveBuyAvg !== null && effectiveBuyAvg > 0) {
+        realizedSpreadProfit += r.sellAsset * (sellAvg - effectiveBuyAvg);
       }
     }
 
+    const hasSales = raw.sell > 0;
     const totalFees = raw.merchantFee + raw.exchangeFee + raw.paymentCharge;
-    const netFees = raw.merchantFee - raw.exchangeFee - raw.paymentCharge;
-    const netFiatProfit = realizedSpreadProfit + netFees;
+    // Solo cuando existen ventas se computan las comisiones/costos asociados a la venta dentro de la ganancia neta
+    const netFees = hasSales
+      ? raw.sellMerchantFee - raw.sellExchangeFee - raw.sellPaymentCharge
+      : 0;
+    const netFiatProfit = hasSales ? realizedSpreadProfit + netFees : 0;
     const fiatBal = allTimeFiatMap[f]?.available ?? 0;
 
     formattedFiatMetrics[f] = {
@@ -532,7 +592,7 @@ export async function getMerchantDashboardMetrics(
       paymentCharge: toFixedStr(raw.paymentCharge, 2),
       totalFees: toFixedStr(totalFees, 2),
       netFees: toFixedStr(netFees, 2),
-      realizedSpreadProfit: toFixedStr(realizedSpreadProfit, 2),
+      realizedSpreadProfit: toFixedStr(hasSales ? realizedSpreadProfit : 0, 2),
       netFiatProfit: toFixedStr(netFiatProfit, 2),
       availableFiat: toFixedStr(fiatBal, 2),
       ratesByAsset,

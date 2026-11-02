@@ -83,7 +83,7 @@ export default function NewOperationPage() {
 
   // Comisiones con soporte dual (% Porcentaje o Monto Fijo en fiat)
   const [merchantFeeMode, setMerchantFeeMode] = React.useState<"percent" | "fixed">("percent");
-  const [merchantFeePercent, setMerchantFeePercent] = React.useState("0.50");
+  const [merchantFeePercent, setMerchantFeePercent] = React.useState("0");
   const [merchantFeeFixed, setMerchantFeeFixed] = React.useState("0.00");
 
   const [exchangeFeeMode, setExchangeFeeMode] = React.useState<"percent" | "fixed">("percent");
@@ -237,12 +237,13 @@ export default function NewOperationPage() {
   const currentFiatVal = parseFloat(fiatAmount) || 0;
 
   const computedMerchantFee = React.useMemo(() => {
+    if (side === "buy") return 0;
     if (merchantFeeMode === "percent") {
       const p = parseFloat(merchantFeePercent) || 0;
       return (currentFiatVal * p) / 100;
     }
     return parseFloat(merchantFeeFixed) || 0;
-  }, [merchantFeeMode, merchantFeePercent, merchantFeeFixed, currentFiatVal]);
+  }, [side, merchantFeeMode, merchantFeePercent, merchantFeeFixed, currentFiatVal]);
 
   const computedExchangeFee = React.useMemo(() => {
     if (exchangeFeeMode === "percent") {
@@ -326,7 +327,7 @@ export default function NewOperationPage() {
   const currentCrypto = parseFloat(cryptoAmount) || 0;
 
   const surplusAnalysis = React.useMemo(() => {
-    if (effectiveRefRate <= 0 || currentUnitPrice <= 0) {
+    if (side === "buy" || effectiveRefRate <= 0 || currentUnitPrice <= 0) {
       return null;
     }
 
@@ -525,6 +526,11 @@ export default function NewOperationPage() {
 
   // Sincronizar regla de comisión del perfil activo con el formulario
   React.useEffect(() => {
+    if (side === "buy") {
+      setMerchantFeePercent("0");
+      setMerchantFeeFixed("0.00");
+      return;
+    }
     if (activeCommissionRule) {
       const pct = parseFloat(activeCommissionRule.percentage) || 0;
       const fixed = parseFloat(activeCommissionRule.fixedFee) || 0;
@@ -1016,8 +1022,8 @@ export default function NewOperationPage() {
                           <strong className="text-white">
                             {effectiveRefRate > 0 ? effectiveRefRate.toFixed(2) : "0.00"} {fiatCurrency}
                           </strong>
-                          . Al comprar con descuento bajo este precio, aseguras tu{" "}
-                          <span className="text-[#00ff66] font-bold">margen de ganancia</span>.
+                          . En las compras adquieres el {asset} para tener el activo y establecer tu{" "}
+                          <span className="text-[#00ff66] font-bold">precio promedio de compra</span> (la ganancia se realiza al vender).
                         </span>
                       )}
                     </div>
@@ -1072,7 +1078,11 @@ export default function NewOperationPage() {
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                   <div className="flex items-center gap-1.5 text-xs font-mono text-slate-200">
                     <Sliders className="w-3.5 h-3.5 text-[#00ff66]" />
-                    <span className="font-bold">Fijar Ganancia / Spread en {fiatCurrency}:</span>
+                    <span className="font-bold">
+                      {side === "sell"
+                        ? `Fijar Ganancia / Margen de Venta en ${fiatCurrency}:`
+                        : `Ajustar Precio de Compra respecto a Referencia (${fiatCurrency}):`}
+                    </span>
                     {effectiveRefRate > 0 && (
                       <span className="text-[11px] text-slate-400">
                         (Ref: <strong className="text-white">{effectiveRefRate.toFixed(2)}</strong> {fiatCurrency})

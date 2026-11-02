@@ -340,7 +340,7 @@ export default function MerchantDashboardPage() {
           </CardContent>
         </Card>
 
-        {/* KPI 4: Ganancia Realizada en Fiat (Casilla de Ganancias en Moneda Local) */}
+        {/* KPI 4: Ganancia Realizada en Ventas (Sobre el Precio Promedio de Compra) */}
         <Card className="bg-[#10131a] border-[#1e2433] relative overflow-hidden group hover:border-emerald-500/50 transition-all duration-200">
           <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-emerald-400 via-teal-300 to-[#00ff66]" />
           <CardHeader className="flex flex-row items-center justify-between pb-2">
@@ -355,33 +355,54 @@ export default function MerchantDashboardPage() {
             {isLoading ? (
               <Skeleton className="h-8 w-32 mb-2" />
             ) : activeFiatMetric ? (
-              <>
-                <div
-                  className={`text-2xl font-bold font-mono flex items-baseline gap-1.5 ${
-                    parseFloat(activeFiatMetric.netFiatProfit) >= 0
-                      ? "text-[#00ff66]"
-                      : "text-rose-400"
-                  }`}
-                >
-                  {parseFloat(activeFiatMetric.netFiatProfit) >= 0 ? "+" : ""}
-                  {parseFloat(activeFiatMetric.netFiatProfit).toLocaleString("en-US", {
-                    minimumFractionDigits: 2,
-                    maximumFractionDigits: 2,
-                  })}
-                  <span className="text-xs text-slate-400 font-normal">
-                    {activeFiatMetric.currency}
-                  </span>
-                </div>
-                <div className="flex items-center gap-1.5 mt-1 text-[10px] font-mono text-slate-400 truncate">
-                  <span className="text-teal-300">
-                    Spread: +{parseFloat(activeFiatMetric.realizedSpreadProfit).toLocaleString("en-US", { maximumFractionDigits: 0 })}
-                  </span>
-                  <span>•</span>
-                  <span className="text-emerald-400">
-                    Comis: +{parseFloat(activeFiatMetric.netFees).toLocaleString("en-US", { maximumFractionDigits: 0 })}
-                  </span>
-                </div>
-              </>
+              (() => {
+                const hasSales = parseFloat(activeFiatMetric.sellFiat || "0") > 0;
+                const profitVal = parseFloat(activeFiatMetric.netFiatProfit || "0");
+                const spreadVal = parseFloat(activeFiatMetric.realizedSpreadProfit || "0");
+                const feesVal = parseFloat(activeFiatMetric.netFees || "0");
+
+                return (
+                  <>
+                    <div
+                      className={`text-2xl font-bold font-mono flex items-baseline gap-1.5 ${
+                        !hasSales || profitVal === 0
+                          ? "text-slate-200"
+                          : profitVal > 0
+                          ? "text-[#00ff66]"
+                          : "text-rose-400"
+                      }`}
+                    >
+                      {hasSales && profitVal > 0 ? "+" : ""}
+                      {profitVal.toLocaleString("en-US", {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                      })}
+                      <span className="text-xs text-slate-400 font-normal">
+                        {activeFiatMetric.currency}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1.5 mt-1 text-[10px] font-mono text-slate-400 truncate">
+                      {hasSales ? (
+                        <>
+                          <span className="text-teal-300">
+                            Margen: {spreadVal >= 0 ? "+" : ""}
+                            {spreadVal.toLocaleString("en-US", { maximumFractionDigits: 0 })}
+                          </span>
+                          <span>•</span>
+                          <span className="text-emerald-400">
+                            Comis: {feesVal >= 0 ? "+" : ""}
+                            {feesVal.toLocaleString("en-US", { maximumFractionDigits: 0 })}
+                          </span>
+                        </>
+                      ) : (
+                        <span className="text-slate-400" title="En las compras se adquiere el activo; la ganancia se genera al vender sobre el precio promedio.">
+                          En compras: 0 • Ganancia al vender
+                        </span>
+                      )}
+                    </div>
+                  </>
+                );
+              })()
             ) : (
               <div className="text-slate-400 text-sm font-mono py-2">
                 0.00 {metrics?.selectedFiatCurrency}
@@ -420,7 +441,7 @@ export default function MerchantDashboardPage() {
           </CardContent>
         </Card>
 
-        {/* KPI 5: Operaciones P2P */}
+        {/* KPI 6: Operaciones P2P */}
         <Card className="bg-[#10131a] border-[#1e2433]">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <span className="text-xs font-mono text-slate-400 uppercase">Operaciones P2P</span>
@@ -539,7 +560,7 @@ export default function MerchantDashboardPage() {
                 Tus Tasas Ponderadas ({activeFiatMetric?.currency || selectedFiat || "VES"})
               </CardTitle>
               <p className="text-xs text-slate-400 mt-0.5">
-                Calculadas por volumen ponderado: Suma(Fiat) / Suma(Cripto) sobre operaciones completadas.
+                En compras defines tu costo promedio de adquisición; al vender por encima de ese promedio obtienes tu ganancia.
               </p>
             </div>
             <Badge variant="neutral" className="font-mono text-xs">
@@ -560,19 +581,20 @@ export default function MerchantDashboardPage() {
                       </span>
                       {rates.grossSpread && (
                         <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                          Spread: +{rates.grossSpread} {activeFiatMetric.currency}
+                          Margen Venta: {parseFloat(rates.grossSpread) >= 0 ? "+" : ""}
+                          {rates.grossSpread} {activeFiatMetric.currency}
                         </span>
                       )}
                     </div>
                     <div className="grid grid-cols-2 gap-2 text-xs font-mono">
                       <div className="p-2 rounded bg-[#121620] border border-[#1c2333]">
-                        <span className="text-[10px] text-slate-400 block">Tasa Compra</span>
+                        <span className="text-[10px] text-slate-400 block">Precio Prom. Compra</span>
                         <span className="text-emerald-400 font-bold">
                           {rates.buyAvgRate ? `${rates.buyAvgRate}` : "—"}
                         </span>
                       </div>
                       <div className="p-2 rounded bg-[#121620] border border-[#1c2333]">
-                        <span className="text-[10px] text-slate-400 block">Tasa Venta</span>
+                        <span className="text-[10px] text-slate-400 block">Precio Prom. Venta</span>
                         <span className="text-blue-400 font-bold">
                           {rates.sellAvgRate ? `${rates.sellAvgRate}` : "—"}
                         </span>
