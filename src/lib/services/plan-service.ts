@@ -1,6 +1,6 @@
 import { db } from "@/lib/db";
 import * as schema from "@/lib/db/schema";
-import { eq, and, desc, gte, lte } from "drizzle-orm";
+import { eq, and, desc } from "drizzle-orm";
 
 export const PLAN_FEATURES = {
   DASHBOARD_ACCESS: "dashboard_access",
@@ -28,6 +28,51 @@ export interface WorkspaceSubscriptionDetails {
   endsAt: Date | null;
   features: string[];
   isSimulated: boolean;
+}
+
+export interface ActiveBannerPromotion {
+  id: string;
+  code: string;
+  description: string;
+  discountType: "percentage" | "fixed";
+  discountValue: string;
+  applicablePlans: string[];
+  maxUses: number | null;
+  timesUsed: number;
+}
+
+/**
+ * Obtiene la promoción activa actual para mostrar en el cintillo de carrusel del Landing Page.
+ * Solo puede haber una promoción activa a la vez.
+ */
+export async function getActivePromotionBanner(): Promise<ActiveBannerPromotion | null> {
+  const promo = await db.query.promotions.findFirst({
+    where: eq(schema.promotions.isActive, true),
+    orderBy: [desc(schema.promotions.updatedAt)],
+  });
+
+  if (!promo) {
+    return null;
+  }
+
+  const now = new Date();
+  if (promo.validUntil && now > new Date(promo.validUntil)) {
+    return null;
+  }
+  if (promo.maxUses !== null && promo.timesUsed >= promo.maxUses) {
+    return null;
+  }
+
+  return {
+    id: promo.id,
+    code: promo.code,
+    description: promo.description || `Descuento especial con cupón ${promo.code}`,
+    discountType: (promo.discountType as "percentage" | "fixed") || "percentage",
+    discountValue: promo.discountValue,
+    applicablePlans: (promo.applicablePlans as string[]) || ["business", "enterprise"],
+    maxUses: promo.maxUses,
+    timesUsed: promo.timesUsed,
+  };
 }
 
 /**
@@ -239,7 +284,7 @@ export async function validatePromotionCoupon(
   if (!promo) {
     return {
       valid: false,
-      message: `El cupón '${cleanCode}' no existe o ha sido desactivado.`,
+      message: `El cupón '${cleanCode}' no está activo actualmente o no existe.`,
       originalPrice,
       discountAmount: 0,
       finalPrice: originalPrice,
@@ -404,8 +449,11 @@ export async function simulatePlanCheckout(
         .where(eq(schema.promotions.id, appliedPromo.id));
     }
 
-    // Actualizar suscripción activa a 30 días posteriores
-    const thirtyDaysLater = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+    // Determinar estado y vigencia según el plan
+    const isTrial = targetPlan.code === "free_trial";
+    const durationDays = isTrial ? (targetPlan.trialDays || 7) : 30;
+    const newStatus = isTrial ? "trialing" : "active";
+    const periodEndsAt = new Date(now.getTime() + durationDays * 24 * 60 * 60 * 1000);
 
     const existingSub = await db.query.subscriptions.findFirst({
       where: eq(schema.subscriptions.workspaceId, workspaceId),
@@ -417,9 +465,9 @@ export async function simulatePlanCheckout(
         .update(schema.subscriptions)
         .set({
           planId: targetPlan.id,
-          status: "active",
+          status: newStatus,
           startedAt: now,
-          endsAt: thirtyDaysLater,
+          endsAt: periodEndsAt,
           provider: "demo",
           isSimulated: true,
           updatedAt: now,
@@ -429,9 +477,9 @@ export async function simulatePlanCheckout(
       await db.insert(schema.subscriptions).values({
         workspaceId,
         planId: targetPlan.id,
-        status: "active",
+        status: newStatus,
         startedAt: now,
-        endsAt: thirtyDaysLater,
+        endsAt: periodEndsAt,
         provider: "demo",
         isSimulated: true,
         createdAt: now,

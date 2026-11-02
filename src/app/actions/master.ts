@@ -109,6 +109,7 @@ const createPromoSchema = z.object({
   applicablePlans: z.array(z.string()).optional(),
   maxUses: z.coerce.number().positive().optional().nullable(),
   validUntil: z.string().optional().nullable(),
+  activateInBanner: z.boolean().optional(),
 });
 
 export async function createMasterPromotionAction(input: CreatePromotionInput) {
@@ -123,8 +124,12 @@ export async function createMasterPromotionAction(input: CreatePromotionInput) {
     applicablePlans: parsed.applicablePlans || ["business", "enterprise"],
     maxUses: parsed.maxUses || undefined,
     validUntil: parsed.validUntil ? new Date(parsed.validUntil) : null,
+    activateInBanner: parsed.activateInBanner,
   });
 
+  revalidatePath("/");
+  revalidatePath("/precios");
+  revalidatePath("/registro");
   revalidatePath("/master/promociones");
   revalidatePath("/master/auditoria");
 
@@ -132,12 +137,15 @@ export async function createMasterPromotionAction(input: CreatePromotionInput) {
 }
 
 /**
- * 7. Alternar Estado Activo / Inactivo de Promoción
+ * 7. Alternar Estado Activo / Inactivo de Promoción (exclusivo 1 activa a la vez)
  */
 export async function toggleMasterPromotionAction(promoId: string) {
   const admin = await requirePlatformOwner();
   const res = await toggleMasterPromotionStatus(admin.id, promoId);
 
+  revalidatePath("/");
+  revalidatePath("/precios");
+  revalidatePath("/registro");
   revalidatePath("/master/promociones");
   revalidatePath("/master/auditoria");
 

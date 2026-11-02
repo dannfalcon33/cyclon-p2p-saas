@@ -42,7 +42,7 @@ export function MasterSidebar() {
     <aside className="w-64 border-r border-[#261f18] bg-[#0c0906] flex flex-col h-screen sticky top-0 shrink-0">
       {/* Brand Header with Amber Warning Styling */}
       <div className="h-16 border-b border-[#261f18] px-6 flex items-center justify-between">
-        <Link href="/master" className="flex items-center gap-2.5">
+        <Link href="/master" prefetch={false} className="flex items-center gap-2.5">
           <div className="w-8 h-8 rounded-lg bg-amber-500/10 border border-amber-500/40 flex items-center justify-center">
             <ShieldAlert className="w-4 h-4 text-amber-400" />
           </div>
@@ -70,6 +70,7 @@ export function MasterSidebar() {
             <Link
               key={item.href}
               href={item.href}
+              prefetch={false}
               className={cn(
                 "flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-xs font-medium transition-all duration-150",
                 isActive
@@ -93,6 +94,7 @@ export function MasterSidebar() {
       <div className="p-4 border-t border-[#261f18] space-y-2">
         <Link
           href="/app"
+          prefetch={false}
           className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-mono text-slate-400 hover:text-white hover:bg-[#17120e] transition-colors"
         >
           <ArrowLeft className="w-3.5 h-3.5" />

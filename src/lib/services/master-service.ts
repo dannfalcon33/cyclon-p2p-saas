@@ -1,6 +1,6 @@
 import { db } from "@/lib/db";
 import * as schema from "@/lib/db/schema";
-import { eq, and, desc, sql, ilike, or } from "drizzle-orm";
+import { eq, ne, and, desc } from "drizzle-orm";
 
 export interface MasterDashboardMetrics {
   totalMerchants: number;
@@ -61,6 +61,7 @@ export interface CreatePromotionInput {
   applicablePlans?: string[];
   maxUses?: number;
   validUntil?: Date | string | null;
+  activateInBanner?: boolean;
 }
 
 /**
@@ -389,12 +390,13 @@ export async function reactivateMerchant(
  */
 export async function getMasterPromotions() {
   return db.query.promotions.findMany({
-    orderBy: [desc(schema.promotions.createdAt)],
+    orderBy: [desc(schema.promotions.isActive), desc(schema.promotions.createdAt)],
   });
 }
 
 /**
  * 6. Creación de Nueva Promoción / Cupón con Auditoría
+ * Regla de visibilidad: solo puede estar activa una promoción a la vez para el cintillo del Landing.
  */
 export async function createMasterPromotion(
   adminUserId: string,
@@ -428,6 +430,14 @@ export async function createMasterPromotion(
 
   const now = new Date();
   const validUntilDate = input.validUntil ? new Date(input.validUntil) : null;
+  const shouldActivate = input.activateInBanner !== false;
+
+  // Si la nueva promoción nace activa, desactivar todas las anteriores para que solo haya 1 activa a la vez
+  if (shouldActivate) {
+    await db
+      .update(schema.promotions)
+      .set({ isActive: false, updatedAt: now });
+  }
 
   const [newPromo] = await db
     .insert(schema.promotions)
@@ -441,7 +451,7 @@ export async function createMasterPromotion(
       timesUsed: 0,
       validFrom: now,
       validUntil: validUntilDate,
-      isActive: true,
+      isActive: shouldActivate,
       createdAt: now,
       updatedAt: now,
     })
@@ -455,11 +465,12 @@ export async function createMasterPromotion(
     targetId: newPromo.id,
     reason: `Creación del cupón '${cleanCode}' con descuento de ${valNum}${
       input.discountType === "percentage" ? "%" : " USD"
-    }.`,
+    } (${shouldActivate ? "Activado en cintillo Landing" : "Pausado"}).`,
     diffPayload: {
       code: cleanCode,
       discountType: input.discountType,
       discountValue: valNum,
+      isActive: shouldActivate,
     },
     createdAt: now,
   });
@@ -468,7 +479,9 @@ export async function createMasterPromotion(
 }
 
 /**
- * 7. Alternar Estado (Activar/Desactivar) de Cupón Promocional con Auditoría
+ * 7. Alternar Estado (Activar/Desactivar) de Cupón Promocional con Auditoría.
+ * Regla estricta: solo puede estar activa una promoción a la vez.
+ * Al activar un cupón, cualquier otro cupón activo pasa automáticamente a estado pausado.
  */
 export async function toggleMasterPromotionStatus(
   adminUserId: string,
@@ -485,6 +498,17 @@ export async function toggleMasterPromotionStatus(
   const newStatus = !promo.isActive;
   const now = new Date();
 
+  if (newStatus) {
+    // Desactivar todas las demás promociones para garantizar que solo 1 esté activa a la vez
+    await db
+      .update(schema.promotions)
+      .set({
+        isActive: false,
+        updatedAt: now,
+      })
+      .where(ne(schema.promotions.id, promoId));
+  }
+
   await db
     .update(schema.promotions)
     .set({
@@ -499,13 +523,14 @@ export async function toggleMasterPromotionStatus(
     action: newStatus ? "ACTIVATE_PROMOTION" : "DEACTIVATE_PROMOTION",
     targetType: "promotion",
     targetId: promoId,
-    reason: `Cambio de estado administrativo del cupón '${promo.code}' a ${
-      newStatus ? "Activo" : "Pausado"
-    }.`,
+    reason: newStatus
+      ? `Activación exclusiva del cupón '${promo.code}' en el cintillo del Landing Page (los demás cupones pasaron a pausado).`
+      : `Pausa administrativa del cupón '${promo.code}' (oculto del cintillo del Landing Page).`,
     diffPayload: {
       code: promo.code,
       previousStatus: promo.isActive,
       newStatus,
+      exclusiveActiveRule: true,
     },
     createdAt: now,
   });

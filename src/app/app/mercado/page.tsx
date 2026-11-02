@@ -45,10 +45,12 @@ import type {
   MultiExchangeP2PComparison,
   MultiExchangeSpotComparison,
 } from "@/lib/services/multi-exchange-service";
+import { usePageLoading } from "@/components/ui/page-loader";
 
 export default function EnterpriseMarketPage() {
   const [subscriptionData, setSubscriptionData] = React.useState<any>(null);
   const [isCheckingAccess, setIsCheckingAccess] = React.useState(true);
+  usePageLoading(isCheckingAccess, "Cargando Mercado Enterprise...");
 
   // Active UI Controls
   const [selectedAsset, setSelectedAsset] = React.useState<"BTC" | "ETH" | "SOL" | "BNB">("BTC");

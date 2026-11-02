@@ -23,10 +23,12 @@ import {
   suspendMerchantAction,
   reactivateMerchantAction,
 } from "@/app/actions/master";
+import { usePageLoading } from "@/components/ui/page-loader";
 
 export default function MasterClientsPage() {
   const [clients, setClients] = React.useState<any[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
+  usePageLoading(isLoading, "Cargando Clientes SaaS...");
   const [searchTerm, setSearchTerm] = React.useState("");
   const [statusFilter, setStatusFilter] = React.useState("ALL");
   const [planFilter, setPlanFilter] = React.useState("ALL");

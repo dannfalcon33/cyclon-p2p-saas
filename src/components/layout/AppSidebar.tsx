@@ -79,7 +79,7 @@ export function AppSidebar() {
     <aside className="w-64 border-r border-[#1a1f2c] bg-[#090b10] flex flex-col h-screen sticky top-0 shrink-0">
       {/* Brand Header */}
       <div className="h-16 border-b border-[#1a1f2c] px-6 flex items-center justify-between">
-        <Link href="/app" className="flex items-center gap-2.5">
+        <Link href="/app" prefetch={false} className="flex items-center gap-2.5">
           <div className="w-8 h-8 rounded-lg bg-[#00ff66]/10 border border-[#00ff66]/30 flex items-center justify-center">
             <Zap className="w-4 h-4 text-[#00ff66]" />
           </div>
@@ -144,6 +144,7 @@ export function AppSidebar() {
             </span>
             <Link
               href="/app/plan"
+              prefetch={false}
               className={`font-mono hover:underline ${
                 isExpired
                   ? "text-rose-400 font-bold"
@@ -168,6 +169,7 @@ export function AppSidebar() {
             <Link
               key={item.href}
               href={item.href}
+              prefetch={false}
               className={cn(
                 "flex items-center justify-between px-3.5 py-2.5 rounded-lg text-xs font-medium transition-all duration-150",
                 isActive

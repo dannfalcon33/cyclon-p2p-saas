@@ -32,12 +32,14 @@ import { createOperationAction, fetchWorkspaceBalancesAction } from "@/app/actio
 import { fetchWorkspaceSubscriptionAction } from "@/app/actions/plans";
 import { fetchMultiExchangeP2PAction } from "@/app/actions/multi-exchange";
 import type { MultiExchangeP2PComparison } from "@/lib/services/multi-exchange-service";
+import { usePageLoading } from "@/components/ui/page-loader";
 
 export default function NewOperationPage() {
   const router = useRouter();
 
   // Loading state
   const [isLoading, setIsLoading] = React.useState(true);
+  usePageLoading(isLoading, "Cargando formulario de Nueva Operación...");
 
   // Capital y Saldos disponibles en tiempo real (con tasas históricas)
   const [balances, setBalances] = React.useState<{

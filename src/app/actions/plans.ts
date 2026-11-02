@@ -8,7 +8,15 @@ import {
   getCommercialPlans,
   validatePromotionCoupon,
   simulatePlanCheckout,
+  getActivePromotionBanner,
 } from "@/lib/services/plan-service";
+
+/**
+ * 0. Obtiene la promoción activa única para el cintillo de carrusel del Landing Page
+ */
+export async function fetchActivePromotionBannerAction() {
+  return getActivePromotionBanner();
+}
 
 /**
  * 1. Obtiene los detalles de la suscripción actual y los planes disponibles
@@ -37,28 +45,35 @@ export async function fetchWorkspaceSubscriptionAction() {
  */
 const validateCouponSchema = z.object({
   couponCode: z.string().min(1, "Ingresa un código de cupón"),
-  planCode: z.enum(["business", "enterprise"]),
+  planCode: z.enum(["free_trial", "business", "enterprise"]),
 });
 
 export async function validatePromotionCouponAction(input: {
   couponCode: string;
-  planCode: "business" | "enterprise";
+  planCode: "free_trial" | "business" | "enterprise";
 }) {
   const parsed = validateCouponSchema.parse(input);
-  return validatePromotionCoupon(parsed.couponCode, parsed.planCode);
+  const result = await validatePromotionCoupon(parsed.couponCode, parsed.planCode);
+  return {
+    valid: result.valid,
+    message: result.message,
+    originalPrice: result.originalPrice,
+    discountAmount: result.discountAmount,
+    finalPrice: result.finalPrice,
+  };
 }
 
 /**
  * 3. Ejecuta el checkout simulado de un plan comercial
  */
 const checkoutSchema = z.object({
-  planCode: z.enum(["business", "enterprise"]),
+  planCode: z.enum(["free_trial", "business", "enterprise"]),
   outcome: z.enum(["approved", "pending", "failed"]),
   couponCode: z.string().optional(),
 });
 
 export async function simulatePlanCheckoutAction(input: {
-  planCode: "business" | "enterprise";
+  planCode: "free_trial" | "business" | "enterprise";
   outcome: "approved" | "pending" | "failed";
   couponCode?: string;
 }) {

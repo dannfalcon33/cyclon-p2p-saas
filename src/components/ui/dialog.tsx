@@ -52,7 +52,7 @@ export function Dialog({
       {/* Modal Card */}
       <div
         className={cn(
-          "relative z-50 w-full max-w-lg rounded-xl bg-[#11131a] border border-[#232938] p-6 shadow-2xl shadow-black/80 transition-all",
+          "relative z-50 w-full max-w-lg max-h-[92vh] overflow-y-auto rounded-xl bg-[#11131a] border border-[#232938] p-6 shadow-2xl shadow-black/80 transition-all",
           className
         )}
       >

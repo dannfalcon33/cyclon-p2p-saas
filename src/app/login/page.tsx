@@ -2,7 +2,6 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { Button } from "@/components/ui/button";
@@ -11,13 +10,14 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/com
 import { DemoNoticeBadge } from "@/components/ui/demo-badge";
 import { Mail, Lock, Zap, ArrowRight, AlertCircle } from "lucide-react";
 import { signIn } from "@/lib/auth/client";
+import { usePageLoading } from "@/components/ui/page-loader";
 
 export default function LoginPage() {
-  const router = useRouter();
   const [email, setEmail] = React.useState("");
   const [password, setPassword] = React.useState("");
   const [error, setError] = React.useState("");
   const [isLoading, setIsLoading] = React.useState(false);
+  usePageLoading(isLoading, "Iniciando sesión...");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -41,15 +41,14 @@ export default function LoginPage() {
         return;
       }
 
-      // Redirección por rol
+      // Redirección limpia por rol (evita colisión de Suspense entre router.push y router.refresh)
       const user = res.data?.user as any;
       if (user?.role === "platform_owner") {
-        router.push("/master");
+        window.location.href = "/master";
       } else {
-        router.push("/app");
+        window.location.href = "/app";
       }
-      router.refresh();
-    } catch (err: any) {
+    } catch {
       setError("Error de conexión con el servicio de autenticación.");
       setIsLoading(false);
     }

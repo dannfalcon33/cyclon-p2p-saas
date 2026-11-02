@@ -34,6 +34,7 @@ import {
 } from "@/lib/services/metrics-service";
 import { fetchBinanceUSDTMarketRatesAction } from "@/app/actions/market-rates";
 import type { BinanceP2PRateResult } from "@/lib/services/binance-p2p-service";
+import { usePageLoading } from "@/components/ui/page-loader";
 
 const PERIODS: { id: PeriodFilter; label: string }[] = [
   { id: "today", label: "Hoy" },
@@ -48,6 +49,7 @@ export default function MerchantDashboardPage() {
   const [selectedFiat, setSelectedFiat] = React.useState<string>("");
   const [metrics, setMetrics] = React.useState<MerchantDashboardMetrics | null>(null);
   const [isLoading, setIsLoading] = React.useState<boolean>(true);
+  usePageLoading(isLoading, "Sincronizando métricas del Dashboard...");
   const [error, setError] = React.useState<string | null>(null);
 
   // Binance P2P Live Reference Benchmark

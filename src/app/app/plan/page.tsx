@@ -27,9 +27,11 @@ import {
   validatePromotionCouponAction,
   simulatePlanCheckoutAction,
 } from "@/app/actions/plans";
+import { usePageLoading } from "@/components/ui/page-loader";
 
 export default function MerchantPlanPage() {
   const [isLoading, setIsLoading] = React.useState(true);
+  usePageLoading(isLoading, "Cargando Mi Plan y Suscripción...");
   const [data, setData] = React.useState<any>(null);
   const [feedback, setFeedback] = React.useState<{
     type: "success" | "error" | "warning";

@@ -191,7 +191,7 @@ async function seed() {
       discountValue: "100.00",
       applicablePlans: ["business", "enterprise"],
       maxUses: 50,
-      isActive: true,
+      isActive: false,
     },
   ];
 

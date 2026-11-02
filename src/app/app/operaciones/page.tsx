@@ -26,9 +26,11 @@ import {
   FileSpreadsheet,
 } from "lucide-react";
 import { fetchOperationsAction, cancelOperationAction } from "@/app/actions/operations";
+import { usePageLoading } from "@/components/ui/page-loader";
 
 export default function OperationsPage() {
   const [isLoading, setIsLoading] = React.useState(true);
+  usePageLoading(isLoading, "Cargando Bitácora de Operaciones...");
   const [operations, setOperations] = React.useState<any[]>([]);
   const [summary, setSummary] = React.useState({ completed: 0, pending: 0, cancelled: 0, total: 0 });
   const [pagination, setPagination] = React.useState({ page: 1, pageSize: 15, total: 0, totalPages: 1, hasMore: false });

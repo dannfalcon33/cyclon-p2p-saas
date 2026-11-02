@@ -2,6 +2,8 @@ import { AppSidebar } from "@/components/layout/AppSidebar";
 import { DemoNoticeBadge } from "@/components/ui/demo-badge";
 import { getAuthenticatedWorkspace } from "@/lib/auth/session";
 
+export const dynamic = "force-dynamic";
+
 export default async function AppLayout({
   children,
 }: {

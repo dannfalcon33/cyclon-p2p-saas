@@ -5,10 +5,12 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Lock, RefreshCw, ShieldCheck, FileText } from "lucide-react";
 import { fetchMasterAuditLogsAction } from "@/app/actions/master";
+import { usePageLoading } from "@/components/ui/page-loader";
 
 export default function MasterAuditPage() {
   const [logs, setLogs] = React.useState<any[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
+  usePageLoading(isLoading, "Cargando Auditoría Master...");
   const [error, setError] = React.useState<string | null>(null);
 
   const loadAuditLogs = React.useCallback(async () => {

@@ -1,9 +1,9 @@
 import Link from "next/link";
-import { Zap } from "lucide-react";
+import { Zap, ArrowRight } from "lucide-react";
 
 export function Navbar() {
   return (
-    <header className="sticky top-0 z-40 w-full border-b border-[#1c212e] bg-[#08090d]/80 backdrop-blur-md">
+    <header className="sticky top-0 z-40 w-full border-b border-[#192030] bg-[#08090d]/85 backdrop-blur-md">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
         {/* Brand Logo */}
         <Link href="/" className="flex items-center gap-2.5 group">
@@ -15,7 +15,7 @@ export function Navbar() {
               CYCLON <span className="text-[#00ff66]">P2P</span>
             </span>
             <span className="text-[10px] text-slate-400 font-mono tracking-widest uppercase">
-              Arbitrage & Ledger
+              Control & Trazabilidad
             </span>
           </div>
         </Link>
@@ -23,22 +23,28 @@ export function Navbar() {
         {/* Navigation links */}
         <nav className="hidden md:flex items-center gap-8 text-sm font-medium text-slate-300">
           <Link
+            href="/#producto"
+            className="hover:text-[#00ff66] transition-colors"
+          >
+            Producto
+          </Link>
+          <Link
             href="/#features"
             className="hover:text-[#00ff66] transition-colors"
           >
             Funcionalidades
           </Link>
           <Link
-            href="/#exchanges"
+            href="/#pricing"
             className="hover:text-[#00ff66] transition-colors"
           >
-            Exchanges & Países
+            Precios
           </Link>
           <Link
-            href="/precios"
+            href="/#faq"
             className="hover:text-[#00ff66] transition-colors"
           >
-            Planes & Precios
+            FAQ
           </Link>
         </nav>
 
@@ -46,15 +52,16 @@ export function Navbar() {
         <div className="flex items-center gap-3">
           <Link
             href="/login"
-            className="inline-flex items-center justify-center font-medium rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[#00ff66]/50 select-none cursor-pointer bg-transparent text-slate-300 hover:bg-[#161922] hover:text-white text-xs px-3 py-1.5 gap-1.5"
+            className="inline-flex items-center justify-center font-medium rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[#00ff66]/50 select-none cursor-pointer bg-transparent text-slate-300 hover:bg-[#161922] hover:text-white text-xs sm:text-sm px-3 py-1.5"
           >
-            Iniciar Sesión
+            Iniciar sesión
           </Link>
           <Link
             href="/registro"
-            className="hidden sm:inline-flex items-center justify-center rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[#00ff66]/50 select-none cursor-pointer bg-[#00ff66] text-[#08090d] font-semibold hover:bg-[#00e55b] hover:shadow-[0_0_20px_rgba(0,255,102,0.35)] active:scale-[0.98] text-xs px-3 py-1.5 gap-1.5"
+            className="inline-flex items-center justify-center rounded-full transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[#00ff66]/50 select-none cursor-pointer bg-[#00ff66] text-[#08090d] font-bold hover:bg-[#00e55b] hover:shadow-[0_0_20px_rgba(0,255,102,0.35)] active:scale-[0.98] text-xs sm:text-sm px-4 py-2 gap-1.5"
           >
-            Prueba Gratuita 7 Días
+            <span>Prueba gratis</span>
+            <ArrowRight className="w-3.5 h-3.5" />
           </Link>
         </div>
       </div>

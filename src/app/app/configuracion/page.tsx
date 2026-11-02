@@ -31,6 +31,7 @@ import {
   saveCommissionProfileAction,
   saveWorkspaceSettingsAction,
 } from "@/app/actions/catalogs";
+import { usePageLoading } from "@/components/ui/page-loader";
 
 interface CountryConfig {
   code: string;
@@ -41,6 +42,7 @@ interface CountryConfig {
 export default function ConfigurationPage() {
   const [activeTab, setActiveTab] = React.useState<"commissions" | "banks" | "methods" | "settings">("commissions");
   const [isLoading, setIsLoading] = React.useState(true);
+  usePageLoading(isLoading, "Cargando Comisiones y Bancos...");
   const [feedback, setFeedback] = React.useState<{ type: "success" | "error"; message: string } | null>(null);
 
   // Data from DB

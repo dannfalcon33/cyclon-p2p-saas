@@ -7,20 +7,20 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Users,
-  CreditCard,
   AlertTriangle,
   ArrowRight,
   Clock,
   ShieldCheck,
   TrendingUp,
-  FileText,
   Activity,
 } from "lucide-react";
 import { fetchMasterDashboardAction } from "@/app/actions/master";
+import { usePageLoading } from "@/components/ui/page-loader";
 
 export default function MasterDashboardPage() {
   const [data, setData] = React.useState<any>(null);
   const [isLoading, setIsLoading] = React.useState(true);
+  usePageLoading(isLoading, "Cargando Métricas Globales...");
   const [error, setError] = React.useState<string | null>(null);
 
   const loadMetrics = React.useCallback(async () => {
@@ -51,7 +51,7 @@ export default function MasterDashboardPage() {
             Los importes de facturación aquí mostrados provienen de eventos de simulación del checkout de portafolio y no constituyen ingresos fiscales reales.
           </div>
         </div>
-        <Link href="/master/auditoria">
+        <Link href="/master/auditoria" prefetch={false}>
           <Button variant="secondary" size="sm" className="text-xs shrink-0 border-amber-500/30 text-amber-300">
             Ver Auditoría
           </Button>
@@ -249,21 +249,21 @@ export default function MasterDashboardPage() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3 pt-0">
-            <Link href="/master/clientes" className="block">
+            <Link href="/master/clientes" prefetch={false} className="block">
               <Button variant="secondary" className="w-full justify-between text-xs border-[#2e241a] text-slate-200">
                 <span>Directorio de Clientes</span>
                 <ArrowRight className="w-4 h-4 text-amber-400" />
               </Button>
             </Link>
 
-            <Link href="/master/promociones" className="block">
+            <Link href="/master/promociones" prefetch={false} className="block">
               <Button variant="secondary" className="w-full justify-between text-xs border-[#2e241a] text-slate-200">
                 <span>Gestionar Cupones Demo</span>
                 <ArrowRight className="w-4 h-4 text-amber-400" />
               </Button>
             </Link>
 
-            <Link href="/master/auditoria" className="block">
+            <Link href="/master/auditoria" prefetch={false} className="block">
               <Button variant="secondary" className="w-full justify-between text-xs border-[#2e241a] text-slate-200">
                 <span>Bitácora de Auditoría</span>
                 <ArrowRight className="w-4 h-4 text-amber-400" />
@@ -282,7 +282,7 @@ export default function MasterDashboardPage() {
               <Users className="w-4 h-4 text-amber-400" />
               Últimos Comerciantes Registrados
             </CardTitle>
-            <Link href="/master/clientes" className="text-xs font-mono text-amber-400 hover:underline">
+            <Link href="/master/clientes" prefetch={false} className="text-xs font-mono text-amber-400 hover:underline">
               Ver todos &rarr;
             </Link>
           </CardHeader>
@@ -325,7 +325,7 @@ export default function MasterDashboardPage() {
               <Activity className="w-4 h-4 text-amber-400" />
               Eventos Recientes de Auditoría
             </CardTitle>
-            <Link href="/master/auditoria" className="text-xs font-mono text-amber-400 hover:underline">
+            <Link href="/master/auditoria" prefetch={false} className="text-xs font-mono text-amber-400 hover:underline">
               Ver bitácora &rarr;
             </Link>
           </CardHeader>
