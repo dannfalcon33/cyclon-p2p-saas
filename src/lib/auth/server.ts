@@ -19,6 +19,8 @@ const trustedOriginsList = Array.from(
     [
       "http://localhost:3000",
       "https://*.vercel.app",
+      "https://cyclonp2p-saas.falconit.xyz",
+      "https://*.falconit.xyz",
       process.env.BETTER_AUTH_URL,
       process.env.NEXT_PUBLIC_APP_URL,
       process.env.VERCEL_PROJECT_PRODUCTION_URL

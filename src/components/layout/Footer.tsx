@@ -129,15 +129,15 @@ export function Footer() {
           <ul className="space-y-2.5 text-xs">
             <li>
               <Link
-                href="/#seguridad"
+                href="/terminos"
                 className="hover:text-[#00ff66] transition-colors"
               >
-                Términos de Servicio
+                Términos y Condiciones
               </Link>
             </li>
             <li>
               <Link
-                href="/#seguridad"
+                href="/privacidad"
                 className="hover:text-[#00ff66] transition-colors"
               >
                 Política de Privacidad
@@ -145,7 +145,7 @@ export function Footer() {
             </li>
             <li>
               <Link
-                href="/#seguridad"
+                href="/transparencia"
                 className="hover:text-[#00ff66] transition-colors"
               >
                 Transparencia No-Custodial
