@@ -25,6 +25,7 @@ import {
   Globe2,
 } from "lucide-react";
 import { fetchOperationDetailAction, cancelOperationAction } from "@/app/actions/operations";
+import { usePageLoading } from "@/components/ui/page-loader";
 
 export default function OperationDetailPage() {
   const params = useParams();
@@ -36,6 +37,8 @@ export default function OperationDetailPage() {
   const [isCancelDialogOpen, setIsCancelDialogOpen] = React.useState(false);
   const [cancelReason, setCancelReason] = React.useState("");
   const [isCancelling, setIsCancelling] = React.useState(false);
+  usePageLoading(isLoading, "Cargando detalle de la operación...");
+  usePageLoading(isCancelling, "Cancelando operación P2P...");
   const [feedback, setFeedback] = React.useState<{ type: "success" | "error"; message: string } | null>(null);
 
   const loadDetail = React.useCallback(async () => {

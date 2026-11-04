@@ -99,6 +99,8 @@ export default function NewOperationPage() {
   const [notes, setNotes] = React.useState("");
 
   const [isSubmitting, setIsSubmitting] = React.useState(false);
+  usePageLoading(isLoadingRates && !isLoading, `Cargando cotizaciones P2P en vivo (${fiatCurrency})...`);
+  usePageLoading(isSubmitting, "Registrando operación P2P y actualizando saldos...");
   const [errorMessage, setErrorMessage] = React.useState<string | null>(null);
   const [successMessage, setSuccessMessage] = React.useState<string | null>(null);
   const [isPlanExpired, setIsPlanExpired] = React.useState(false);
@@ -586,11 +588,13 @@ export default function NewOperationPage() {
       );
       setTimeout(() => {
         router.push("/app/operaciones");
-      }, 1000);
+      }, 400);
     } catch (err: any) {
       setErrorMessage(err.message || "Error al registrar la operación");
-    } finally {
       setIsSubmitting(false);
+      // Mantenemos isSubmitting activo hasta que se complete la navegación a /app/operaciones
+    } finally {
+      // Mantenemos isSubmitting activo hasta que se complete la navegación a /app/operaciones
     }
   };
 

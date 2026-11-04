@@ -47,6 +47,7 @@ export default function OperationsPage() {
   const [cancellingOp, setCancellingOp] = React.useState<any | null>(null);
   const [cancelReason, setCancelReason] = React.useState("");
   const [isCancelling, setIsCancelling] = React.useState(false);
+  usePageLoading(isCancelling, "Cancelando operación P2P...");
   const [feedback, setFeedback] = React.useState<{ type: "success" | "error"; message: string } | null>(null);
 
   // Excel Export Modal State
