@@ -29,6 +29,7 @@ export const metadata: Metadata = {
 
 import { ToastProvider } from "@/components/ui/toast";
 import { PageLoadingProvider } from "@/components/ui/page-loader";
+import { LanguageProvider } from "@/lib/i18n/LanguageContext";
 
 export default function RootLayout({
   children,
@@ -42,7 +43,9 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col bg-[#08090d] text-slate-100 selection:bg-[#00ff66] selection:text-black">
         <ToastProvider>
-          <PageLoadingProvider>{children}</PageLoadingProvider>
+          <LanguageProvider>
+            <PageLoadingProvider>{children}</PageLoadingProvider>
+          </LanguageProvider>
         </ToastProvider>
       </body>
     </html>

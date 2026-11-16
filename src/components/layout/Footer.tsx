@@ -1,5 +1,8 @@
+"use client";
+
 import Link from "next/link";
 import { Zap } from "lucide-react";
+import { useLanguage } from "@/lib/i18n/LanguageContext";
 
 const SUPPORTED_COUNTRIES = [
   { code: "VE", name: "Venezuela", currency: "VES", flag: "🇻🇪" },
@@ -12,6 +15,8 @@ const SUPPORTED_COUNTRIES = [
 ];
 
 export function Footer() {
+  const { t } = useLanguage();
+
   return (
     <footer className="w-full border-t border-[#182030] bg-[#05070b] text-slate-400 py-14 px-4 sm:px-6 lg:px-8 mt-auto">
       <div className="max-w-7xl mx-auto grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-8 lg:gap-6">
@@ -26,22 +31,17 @@ export function Footer() {
             </span>
           </div>
           <p className="text-xs text-slate-400 leading-relaxed">
-            Tu plataforma de control operativo, auditoría de comisiones y
-            trazabilidad contable P2P para operar con confianza en múltiples
-            exchanges y países.
+            {t.footer.tagline}
           </p>
           <div className="p-3 rounded-xl bg-[#0b0e15] border border-[#1a2232] text-[11px] text-amber-300/90 leading-relaxed">
-            ⚠️ <strong>Aviso legal del MVP:</strong> Cyclon P2P es una
-            herramienta externa de control operativo y bitácora analítica. No
-            custodia fondos, no solicita claves privadas y no ejecuta órdenes en
-            exchanges.
+            {t.footer.legalNotice}
           </div>
         </div>
 
         {/* Columna 2: Producto */}
         <div className="lg:col-span-2">
           <h4 className="text-xs font-mono font-bold uppercase text-white tracking-wider mb-4">
-            Producto
+            {t.footer.productCol}
           </h4>
           <ul className="space-y-2.5 text-xs">
             <li>
@@ -49,7 +49,7 @@ export function Footer() {
                 href="/#features"
                 className="hover:text-[#00ff66] transition-colors"
               >
-                Características
+                {t.footer.featuresLink}
               </Link>
             </li>
             <li>
@@ -57,7 +57,7 @@ export function Footer() {
                 href="/#operativa"
                 className="hover:text-[#00ff66] transition-colors"
               >
-                Vista Operativa
+                {t.footer.operationalLink}
               </Link>
             </li>
             <li>
@@ -65,7 +65,7 @@ export function Footer() {
                 href="/#pricing"
                 className="hover:text-[#00ff66] transition-colors"
               >
-                Precios
+                {t.footer.pricingLink}
               </Link>
             </li>
             <li>
@@ -74,7 +74,7 @@ export function Footer() {
                 prefetch={false}
                 className="hover:text-[#00ff66] transition-colors"
               >
-                Demo Interactiva
+                {t.footer.demoLink}
               </Link>
             </li>
           </ul>
@@ -83,7 +83,7 @@ export function Footer() {
         {/* Columna 3: Recursos */}
         <div className="lg:col-span-2">
           <h4 className="text-xs font-mono font-bold uppercase text-white tracking-wider mb-4">
-            Recursos
+            {t.footer.resourcesCol}
           </h4>
           <ul className="space-y-2.5 text-xs">
             <li>
@@ -91,7 +91,7 @@ export function Footer() {
                 href="/registro"
                 className="hover:text-[#00ff66] transition-colors"
               >
-                Guía de Inicio
+                {t.footer.startGuide}
               </Link>
             </li>
             <li>
@@ -99,7 +99,7 @@ export function Footer() {
                 href="/precios"
                 className="hover:text-[#00ff66] transition-colors"
               >
-                Simulador de Planes
+                {t.footer.simulator}
               </Link>
             </li>
             <li>
@@ -107,7 +107,7 @@ export function Footer() {
                 href="/#seguridad"
                 className="hover:text-[#00ff66] transition-colors"
               >
-                Arquitectura Sin Custodia
+                {t.footer.securityArch}
               </Link>
             </li>
             <li>
@@ -115,7 +115,7 @@ export function Footer() {
                 href="/#faq"
                 className="hover:text-[#00ff66] transition-colors"
               >
-                Preguntas Frecuentes (FAQ)
+                {t.footer.faqLink}
               </Link>
             </li>
           </ul>
@@ -124,7 +124,7 @@ export function Footer() {
         {/* Columna 4: Legal */}
         <div className="lg:col-span-2">
           <h4 className="text-xs font-mono font-bold uppercase text-white tracking-wider mb-4">
-            Legal
+            {t.footer.legalCol}
           </h4>
           <ul className="space-y-2.5 text-xs">
             <li>
@@ -132,7 +132,7 @@ export function Footer() {
                 href="/terminos"
                 className="hover:text-[#00ff66] transition-colors"
               >
-                Términos y Condiciones
+                {t.footer.terms}
               </Link>
             </li>
             <li>
@@ -140,7 +140,7 @@ export function Footer() {
                 href="/privacidad"
                 className="hover:text-[#00ff66] transition-colors"
               >
-                Política de Privacidad
+                {t.footer.privacy}
               </Link>
             </li>
             <li>
@@ -148,7 +148,7 @@ export function Footer() {
                 href="/transparencia"
                 className="hover:text-[#00ff66] transition-colors"
               >
-                Transparencia No-Custodial
+                {t.footer.transparency}
               </Link>
             </li>
             <li>
@@ -156,7 +156,7 @@ export function Footer() {
                 href="/login"
                 className="hover:text-[#00ff66] transition-colors"
               >
-                Acceso Comerciantes
+                {t.footer.merchantAccess}
               </Link>
             </li>
           </ul>
@@ -165,7 +165,7 @@ export function Footer() {
         {/* Columna 5: Países Soportados */}
         <div className="sm:col-span-2 lg:col-span-2">
           <h4 className="text-xs font-mono font-bold uppercase text-white tracking-wider mb-4">
-            Países soportados
+            {t.footer.supportedCountries}
           </h4>
           <div className="flex flex-wrap gap-1.5">
             {SUPPORTED_COUNTRIES.map((country) => (
@@ -187,14 +187,11 @@ export function Footer() {
 
       {/* Barra Inferior de Copyright */}
       <div className="max-w-7xl mx-auto border-t border-[#141a26] mt-10 pt-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-400">
-        <p>
-          © 2026 Cyclon P2P. Todos los derechos reservados. Control operativo y
-          trazabilidad para comerciantes P2P.
-        </p>
+        <p>{t.footer.copyright}</p>
         <div className="flex items-center gap-4 font-mono text-[11px]">
-          <span className="text-[#00ff66]">● Sistema Operativo</span>
+          <span className="text-[#00ff66]">{t.footer.operatingSystem}</span>
           <span>•</span>
-          <span>Modo Demo Portafolio</span>
+          <span>{t.footer.demoPortfolio}</span>
         </div>
       </div>
     </footer>

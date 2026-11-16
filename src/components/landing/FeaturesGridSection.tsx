@@ -3,45 +3,7 @@
 import * as React from "react";
 import { motion, type Variants } from "framer-motion";
 import { Zap, Globe, Scale, BarChart3 } from "lucide-react";
-
-const CORE_FEATURES = [
-  {
-    title: "Bitácora de operaciones",
-    description:
-      "Registra y audita el historial completo de tus órdenes de compra y venta con filtros por exchange, país, banco y estado.",
-    icon: Zap,
-    accentBorder: "hover:border-[#00ff66]/50",
-    iconBox:
-      "bg-[#00ff66]/10 border-[#00ff66]/30 text-[#00ff66] shadow-[0_0_20px_rgba(0,255,102,0.15)]",
-  },
-  {
-    title: "Comisiones por país y exchange",
-    description:
-      "Analiza tus costos reales con desglose de 3 cargos (exchange, banco y comisión propia) e historial inmutable por orden.",
-    icon: Globe,
-    accentBorder: "hover:border-[#00f0ff]/50",
-    iconBox:
-      "bg-[#00f0ff]/10 border-[#00f0ff]/30 text-[#00f0ff] shadow-[0_0_20px_rgba(0,240,255,0.15)]",
-  },
-  {
-    title: "Control de balances",
-    description:
-      "Gestiona tus fondos cripto y divisas fiat por separado (VES, COP, BRL, ARS, USD, PEN, CLP) sin sumas engañosas.",
-    icon: Scale,
-    accentBorder: "hover:border-purple-500/50",
-    iconBox:
-      "bg-purple-500/10 border-purple-500/30 text-purple-400 shadow-[0_0_20px_rgba(168,85,247,0.15)]",
-  },
-  {
-    title: "Reportes en Excel",
-    description:
-      "Exporta libros .XLSX multihop detallados con hojas de operaciones, resumen por moneda y comisiones para tu contabilidad.",
-    icon: BarChart3,
-    accentBorder: "hover:border-[#00ff66]/50",
-    iconBox:
-      "bg-[#00ff66]/10 border-[#00ff66]/30 text-[#00ff66] shadow-[0_0_20px_rgba(0,255,102,0.15)]",
-  },
-];
+import { useLanguage } from "@/lib/i18n/LanguageContext";
 
 const gridContainerVariants: Variants = {
   hidden: { opacity: 0 },
@@ -65,6 +27,43 @@ const cardVariants: Variants = {
 };
 
 export function FeaturesGridSection() {
+  const { t } = useLanguage();
+
+  const features = [
+    {
+      title: t.features.feature1Title,
+      description: t.features.feature1Desc,
+      icon: Zap,
+      accentBorder: "hover:border-[#00ff66]/50",
+      iconBox:
+        "bg-[#00ff66]/10 border-[#00ff66]/30 text-[#00ff66] shadow-[0_0_20px_rgba(0,255,102,0.15)]",
+    },
+    {
+      title: t.features.feature2Title,
+      description: t.features.feature2Desc,
+      icon: Globe,
+      accentBorder: "hover:border-[#00f0ff]/50",
+      iconBox:
+        "bg-[#00f0ff]/10 border-[#00f0ff]/30 text-[#00f0ff] shadow-[0_0_20px_rgba(0,240,255,0.15)]",
+    },
+    {
+      title: t.features.feature3Title,
+      description: t.features.feature3Desc,
+      icon: Scale,
+      accentBorder: "hover:border-purple-500/50",
+      iconBox:
+        "bg-purple-500/10 border-purple-500/30 text-purple-400 shadow-[0_0_20px_rgba(168,85,247,0.15)]",
+    },
+    {
+      title: t.features.feature4Title,
+      description: t.features.feature4Desc,
+      icon: BarChart3,
+      accentBorder: "hover:border-[#00ff66]/50",
+      iconBox:
+        "bg-[#00ff66]/10 border-[#00ff66]/30 text-[#00ff66] shadow-[0_0_20px_rgba(0,255,102,0.15)]",
+    },
+  ];
+
   return (
     <section id="features" className="py-14 lg:py-20 relative">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -75,7 +74,7 @@ export function FeaturesGridSection() {
           whileInView="visible"
           viewport={{ once: true, amount: 0.2 }}
         >
-          {CORE_FEATURES.map((feat) => {
+          {features.map((feat) => {
             const Icon = feat.icon;
             return (
               <motion.div

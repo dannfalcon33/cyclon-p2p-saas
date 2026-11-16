@@ -3,15 +3,18 @@
 import * as React from "react";
 import { motion } from "framer-motion";
 import { Lock, Eye, CloudDownload, CheckCircle2 } from "lucide-react";
-
-const SECURITY_CHECKLIST = [
-  "Sin custodia de fondos ni conexión a billeteras",
-  "Compatibilidad con múltiples exchanges (Binance, Bybit, Bitget)",
-  "Conexión segura y aislamiento por Workspace",
-  "Privacidad financiera y trazabilidad garantizada",
-];
+import { useLanguage } from "@/lib/i18n/LanguageContext";
 
 export function SecuritySection() {
+  const { t } = useLanguage();
+
+  const securityChecklist = [
+    t.security.check1,
+    t.security.check2,
+    t.security.check3,
+    t.security.check4,
+  ];
+
   return (
     <section
       id="seguridad"
@@ -81,7 +84,7 @@ export function SecuritySection() {
                   <Lock className="w-9 h-9" />
                 </div>
                 <span className="mt-2 text-[10px] font-mono uppercase tracking-widest text-[#00ff66] font-bold">
-                  Non-Custodial
+                  {t.security.nonCustodialBadge}
                 </span>
               </motion.div>
             </div>
@@ -96,20 +99,15 @@ export function SecuritySection() {
             transition={{ duration: 0.6, delay: 0.1 }}
           >
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#00ff66]/10 border border-[#00ff66]/30 text-xs font-mono text-[#00ff66]">
-              <span>Seguridad ante todo</span>
+              <span>{t.security.badge}</span>
             </div>
 
             <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-white leading-tight">
-              Tus claves y fondos permanecen bajo tu control
+              {t.security.title}
             </h2>
 
             <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
-              <strong className="text-white">CYCLON P2P</strong> es una capa de
-              control operativo, análisis y reportes contables externa.{" "}
-              <strong className="text-[#00ff66]">
-                No custodiamos tus fondos ni solicitamos claves privadas
-              </strong>{" "}
-              o llaves API de retiro de Binance, Bybit ni Bitget.
+              {t.security.description}
             </p>
 
             {/* 3 Iconos de arquitectura */}
@@ -120,7 +118,7 @@ export function SecuritySection() {
               >
                 <Lock className="w-5 h-5 text-[#00ff66]" />
                 <span className="text-[11px] font-medium text-slate-200 leading-tight">
-                  Sin claves privadas
+                  {t.security.pillar1}
                 </span>
               </motion.div>
               <motion.div
@@ -129,7 +127,7 @@ export function SecuritySection() {
               >
                 <Eye className="w-5 h-5 text-[#00f0ff]" />
                 <span className="text-[11px] font-medium text-slate-200 leading-tight">
-                  Bitácora y auditoría
+                  {t.security.pillar2}
                 </span>
               </motion.div>
               <motion.div
@@ -138,7 +136,7 @@ export function SecuritySection() {
               >
                 <CloudDownload className="w-5 h-5 text-purple-400" />
                 <span className="text-[11px] font-medium text-slate-200 leading-tight">
-                  Datos exportables
+                  {t.security.pillar3}
                 </span>
               </motion.div>
             </div>
@@ -153,9 +151,9 @@ export function SecuritySection() {
             transition={{ duration: 0.6, delay: 0.2 }}
           >
             <div className="rounded-2xl bg-[#0d111a]/90 border border-[#1c2436] p-5 space-y-3.5">
-              {SECURITY_CHECKLIST.map((item, idx) => (
+              {securityChecklist.map((item, idx) => (
                 <motion.div
-                  key={item}
+                  key={idx}
                   initial={{ opacity: 0, x: 14 }}
                   whileInView={{ opacity: 1, x: 0 }}
                   viewport={{ once: true }}

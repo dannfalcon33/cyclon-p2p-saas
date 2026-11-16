@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import { Tag, Sparkles, Copy, Check, ArrowRight } from "lucide-react";
 import { fetchActivePromotionBannerAction } from "@/app/actions/plans";
 import type { ActiveBannerPromotion } from "@/lib/services/plan-service";
+import { useLanguage } from "@/lib/i18n/LanguageContext";
 
 interface PromoCarouselBannerProps {
   onApplyPromo?: (couponCode: string) => void;
@@ -13,6 +14,7 @@ interface PromoCarouselBannerProps {
 export function PromoCarouselBanner({
   onApplyPromo,
 }: PromoCarouselBannerProps) {
+  const { t } = useLanguage();
   const [promo, setPromo] = React.useState<ActiveBannerPromotion | null>(null);
   const [copied, setCopied] = React.useState(false);
 
@@ -38,12 +40,12 @@ export function PromoCarouselBanner({
   const plansLabel =
     promo.applicablePlans?.length > 0
       ? promo.applicablePlans.map((p) => p.toUpperCase()).join(" & ")
-      : "TODOS LOS PLANES";
+      : t.promoBanner.allPlans;
 
   const remainingLabel =
     promo.maxUses !== null
-      ? `${Math.max(0, promo.maxUses - promo.timesUsed)} cupos disponibles`
-      : "Cupos disponibles por tiempo limitado";
+      ? `${Math.max(0, promo.maxUses - promo.timesUsed)} ${t.promoBanner.limitedSpots}`
+      : t.promoBanner.limitedTime;
 
   const handleCopy = () => {
     if (typeof navigator !== "undefined" && navigator.clipboard) {
@@ -54,10 +56,10 @@ export function PromoCarouselBanner({
   };
 
   const tickerItems = [
-    `PROMOCIÓN EXCLUSIVA ACTIVA: ${discountLabel}`,
-    `USA EL CÓDIGO: ${promo.code}`,
+    `${t.promoBanner.activePromo}: ${discountLabel}`,
+    `CODE: ${promo.code}`,
     promo.description,
-    `APLICABLE EN PLANES: ${plansLabel}`,
+    `${plansLabel}`,
     remainingLabel,
   ];
 
@@ -67,7 +69,7 @@ export function PromoCarouselBanner({
         {/* Etiqueta fija izquierda */}
         <div className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#00ff66] text-[#06080c] font-mono text-[10px] font-extrabold uppercase tracking-wider shrink-0 shadow-[0_0_15px_rgba(0,255,102,0.4)]">
           <Sparkles className="w-3 h-3" />
-          <span>Promo Activa</span>
+          <span>{t.promoBanner.activePromo}</span>
         </div>
 
         {/* Cintillo de Carrusel en movimiento continuo (Framer Motion) */}
@@ -107,13 +109,13 @@ export function PromoCarouselBanner({
           <button
             type="button"
             onClick={handleCopy}
-            title="Copiar código de cupón"
+            title={t.promoBanner.copyCode}
             className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-[#0e1722] border border-[#00ff66]/40 hover:border-[#00ff66] text-[#00ff66] font-mono text-[11px] font-bold transition-colors cursor-pointer"
           >
             {copied ? (
               <>
                 <Check className="w-3 h-3" />
-                <span>¡Copiado!</span>
+                <span>{t.promoBanner.copied}</span>
               </>
             ) : (
               <>
@@ -129,7 +131,7 @@ export function PromoCarouselBanner({
               onClick={() => onApplyPromo(promo.code)}
               className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-[#00ff66] hover:bg-[#00e55b] text-[#06080c] font-mono text-[11px] font-extrabold transition-all cursor-pointer shadow-[0_0_12px_rgba(0,255,102,0.3)]"
             >
-              <span>Canjear</span>
+              <span>{t.promoBanner.redeem}</span>
               <ArrowRight className="w-3 h-3" />
             </button>
           )}
@@ -138,4 +140,3 @@ export function PromoCarouselBanner({
     </div>
   );
 }
-

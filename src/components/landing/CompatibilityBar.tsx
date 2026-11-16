@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { motion } from "framer-motion";
+import { useLanguage } from "@/lib/i18n/LanguageContext";
 
 const EXCHANGES = [
   {
@@ -64,6 +65,8 @@ const CRYPTOS = [
 ];
 
 export function CompatibilityBar() {
+  const { t } = useLanguage();
+
   return (
     <motion.section
       id="exchanges"
@@ -77,7 +80,7 @@ export function CompatibilityBar() {
         {/* Exchanges Soportados */}
         <div className="flex flex-wrap items-center justify-center gap-3">
           <span className="text-xs font-mono uppercase tracking-wider text-slate-400">
-            Exchanges soportados:
+            {t.compatibility.exchangesLabel}:
           </span>
           <div className="flex flex-wrap items-center gap-2.5">
             {EXCHANGES.map((ex, idx) => (
@@ -102,7 +105,7 @@ export function CompatibilityBar() {
         {/* Criptomonedas Soportadas */}
         <div className="flex flex-wrap items-center justify-center gap-3">
           <span className="text-xs font-mono uppercase tracking-wider text-slate-400">
-            Criptomonedas:
+            {t.compatibility.cryptosLabel}:
           </span>
           <div className="flex flex-wrap items-center gap-2">
             {CRYPTOS.map((coin, idx) => (

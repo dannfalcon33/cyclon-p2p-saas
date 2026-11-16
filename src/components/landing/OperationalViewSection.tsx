@@ -3,6 +3,7 @@
 import * as React from "react";
 import { motion, type Variants } from "framer-motion";
 import { CheckCircle2, TrendingUp } from "lucide-react";
+import { useLanguage } from "@/lib/i18n/LanguageContext";
 
 const OPERATIONAL_BENEFITS = [
   "Historial unificado de órdenes con snapshot inmutable de comisión",
@@ -34,6 +35,15 @@ const rightItemVariants: Variants = {
 };
 
 export function OperationalViewSection() {
+  const { t } = useLanguage();
+
+  const benefits = [
+    t.operational.benefit1,
+    t.operational.benefit2,
+    t.operational.benefit3,
+    t.operational.benefit4,
+  ];
+
   return (
     <section
       id="operativa"
@@ -59,10 +69,10 @@ export function OperationalViewSection() {
                   <div className="sm:col-span-5 space-y-4 border-b sm:border-b-0 sm:border-r border-[#1a2233] pb-5 sm:pb-0 sm:pr-5">
                     <div>
                       <h4 className="text-sm font-bold text-white">
-                        Distribución de Volumen
+                        {t.operational.cardVolumeTitle}
                       </h4>
                       <p className="text-[11px] text-slate-400 font-mono">
-                        Trazabilidad por plataforma
+                        {t.operational.cardVolumeDesc}
                       </p>
                     </div>
 
@@ -285,7 +295,7 @@ export function OperationalViewSection() {
                         className="sm:absolute sm:bottom-2 sm:right-2 mt-2 sm:mt-0 p-3 rounded-xl bg-[#0e131f]/95 border border-[#00ff66]/40 shadow-[0_0_25px_rgba(0,255,102,0.15)] backdrop-blur-md"
                       >
                         <div className="text-[10px] font-mono uppercase tracking-wider text-slate-400">
-                          Ganancia Neta Conciliada
+                          {t.operational.statNetProfit}
                         </div>
                         <div className="text-xl font-mono font-extrabold text-white mt-0.5">
                           $12,540.30{" "}
@@ -313,33 +323,30 @@ export function OperationalViewSection() {
               variants={rightItemVariants}
               className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#00ff66]/10 border border-[#00ff66]/30 text-xs font-mono text-[#00ff66]"
             >
-              <span>Potencia tu negocio P2P</span>
+              <span>{t.operational.badge}</span>
             </motion.div>
 
             <motion.h2
               variants={rightItemVariants}
               className="text-3xl sm:text-4xl font-extrabold tracking-tight text-white leading-tight"
             >
-              Opera con precisión y maximiza tus ganancias
+              {t.operational.title}
             </motion.h2>
 
             <motion.p
               variants={rightItemVariants}
               className="text-sm sm:text-base text-slate-300 leading-relaxed"
             >
-              Obtén control operativo real sobre tu actividad P2P. A diferencia
-              de una hoja de cálculo común, Cyclon P2P audita cada orden y
-              preserva la trazabilidad exacta de tus márgenes por país, banco y
-              plataforma.
+              {t.operational.subtitle}
             </motion.p>
 
             <motion.ul
               variants={rightItemVariants}
               className="space-y-3 pt-1"
             >
-              {OPERATIONAL_BENEFITS.map((item, idx) => (
+              {benefits.map((item, idx) => (
                 <motion.li
-                  key={item}
+                  key={idx}
                   initial={{ opacity: 0, x: 16 }}
                   whileInView={{ opacity: 1, x: 0 }}
                   viewport={{ once: true }}

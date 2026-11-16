@@ -6,6 +6,7 @@ import { motion, type Variants } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { DemoNoticeBadge } from "@/components/ui/demo-badge";
 import { type PlanCodeOption } from "@/components/plans/PlanCheckoutModal";
+import { useLanguage } from "@/lib/i18n/LanguageContext";
 import {
   Zap,
   ArrowRight,
@@ -113,6 +114,8 @@ const kpiCardVariants: Variants = {
 export function HeroDashboardSection({
   onSelectPlan,
 }: HeroDashboardSectionProps) {
+  const { t } = useLanguage();
+
   return (
     <section
       id="producto"
@@ -137,7 +140,7 @@ export function HeroDashboardSection({
             >
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#00ff66]/10 border border-[#00ff66]/30 text-xs font-mono text-[#00ff66]">
                 <Zap className="w-3.5 h-3.5" />
-                <span>Control Operativo & Trazabilidad P2P</span>
+                <span>{t.nav.brandSubtitle}</span>
               </div>
               <DemoNoticeBadge />
             </motion.div>
@@ -146,18 +149,18 @@ export function HeroDashboardSection({
               variants={fadeUpItemVariants}
               className="text-4xl sm:text-5xl xl:text-[54px] font-extrabold tracking-tight text-white leading-[1.1]"
             >
-              Control total de tus operaciones{" "}
-              <span className="text-[#00ff66] neon-text-glow">P2P</span>
+              {t.hero.title1}{" "}
+              <span className="text-[#00ff66] neon-text-glow">
+                {t.hero.titleHighlight}
+              </span>{" "}
+              {t.hero.title2}
             </motion.h1>
 
             <motion.p
               variants={fadeUpItemVariants}
               className="text-sm sm:text-base text-slate-300 leading-relaxed max-w-xl"
             >
-              Centraliza tus órdenes, comisiones por país, balances multimoneda y{" "}
-              <strong className="text-white">trazabilidad contable</strong> en un
-              solo panel auditable, con soporte para{" "}
-              <strong className="text-white">Binance, Bybit y Bitget</strong>.
+              {t.hero.description}
             </motion.p>
 
             {/* Botones CTA */}
@@ -172,7 +175,7 @@ export function HeroDashboardSection({
                 className="text-sm sm:text-base font-bold px-6 shadow-[0_0_25px_rgba(0,255,102,0.3)]"
                 onClick={() => onSelectPlan("free_trial")}
               >
-                Iniciar prueba gratis
+                {t.hero.ctaPrimary}
                 <ArrowRight className="w-4 h-4 ml-1.5" />
               </Button>
 
@@ -183,7 +186,7 @@ export function HeroDashboardSection({
                   className="text-sm sm:text-base bg-[#111520]/90 border-[#263044] hover:border-[#00ff66]/50 px-5"
                 >
                   <Play className="w-4 h-4 mr-1.5 text-[#00ff66] fill-[#00ff66]" />
-                  Ver demo
+                  {t.hero.ctaSecondary}
                 </Button>
               </Link>
             </motion.div>
@@ -195,15 +198,15 @@ export function HeroDashboardSection({
             >
               <div className="flex items-center gap-1.5">
                 <ShieldCheck className="w-4 h-4 text-[#00ff66]" />
-                <span>Sin custodia de fondos</span>
+                <span>{t.hero.trustItem1}</span>
               </div>
               <div className="flex items-center gap-1.5">
                 <Activity className="w-4 h-4 text-[#00f0ff]" />
-                <span>Trazabilidad en tiempo real</span>
+                <span>{t.hero.trustItem2}</span>
               </div>
               <div className="flex items-center gap-1.5">
                 <Layers className="w-4 h-4 text-purple-400" />
-                <span>Sin mezcla de divisas</span>
+                <span>{t.hero.trustItem3}</span>
               </div>
             </motion.div>
           </motion.div>
@@ -298,7 +301,7 @@ export function HeroDashboardSection({
                         className="p-3 rounded-xl bg-[#101420] border border-[#1d2538] relative overflow-hidden"
                       >
                         <div className="flex items-center justify-between text-[11px] text-slate-400">
-                          <span>Volumen operado</span>
+                          <span>{t.hero.kpiVolume}</span>
                           <span className="font-mono text-[10px] text-[#00ff66]">USDT</span>
                         </div>
                         <div className="text-lg sm:text-xl font-extrabold font-mono text-white mt-0.5">
@@ -328,7 +331,7 @@ export function HeroDashboardSection({
                         className="p-3 rounded-xl bg-[#101420] border border-[#1d2538] relative overflow-hidden"
                       >
                         <div className="flex items-center justify-between text-[11px] text-slate-400">
-                          <span>Órdenes trazadas</span>
+                          <span>{t.hero.kpiOrders}</span>
                           <span className="font-mono text-[10px] text-[#00f0ff]">3 Exchanges</span>
                         </div>
                         <div className="text-lg sm:text-xl font-extrabold font-mono text-white mt-0.5">
@@ -358,7 +361,7 @@ export function HeroDashboardSection({
                         className="p-3 rounded-xl bg-[#101420] border border-[#1d2538] relative overflow-hidden"
                       >
                         <div className="flex items-center justify-between text-[11px] text-slate-400">
-                          <span>Ganancia neta</span>
+                          <span>{t.hero.kpiProfit}</span>
                           <span className="font-mono text-[10px] text-purple-400">Post-comisión</span>
                         </div>
                         <div className="text-lg sm:text-xl font-extrabold font-mono text-[#00ff66] mt-0.5">
@@ -393,7 +396,7 @@ export function HeroDashboardSection({
                       >
                         <div className="flex items-center justify-between mb-2">
                           <span className="text-xs font-semibold text-white">
-                            Actividad reciente y desglose de comisiones
+                            {t.hero.recentActivity}
                           </span>
                           <span className="text-[10px] font-mono text-slate-400">
                             Snapshot inmutable
@@ -404,12 +407,12 @@ export function HeroDashboardSection({
                           <table className="w-full text-left border-collapse">
                             <thead>
                               <tr className="border-b border-[#181f2e] text-[10px] font-mono text-slate-400">
-                                <th className="py-1.5 pr-2">Orden</th>
-                                <th className="py-1.5 px-2">País</th>
-                                <th className="py-1.5 px-2">Monto</th>
-                                <th className="py-1.5 px-2">Comisión</th>
-                                <th className="py-1.5 px-2">Ganancia</th>
-                                <th className="py-1.5 pl-2 text-right">Estado</th>
+                                <th className="py-1.5 pr-2">{t.hero.tableId}</th>
+                                <th className="py-1.5 px-2">{t.hero.tableCountry}</th>
+                                <th className="py-1.5 px-2">{t.hero.tableAmount}</th>
+                                <th className="py-1.5 px-2">{t.hero.tableFee}</th>
+                                <th className="py-1.5 px-2">{t.hero.tableProfit}</th>
+                                <th className="py-1.5 pl-2 text-right">{t.hero.tableStatus}</th>
                               </tr>
                             </thead>
                             <tbody className="divide-y divide-[#151b28] text-[11px] font-mono">
@@ -452,7 +455,9 @@ export function HeroDashboardSection({
                                       <span
                                         className={`w-1.5 h-1.5 rounded-full ${row.dotColor}`}
                                       />
-                                      {row.status}
+                                      {row.status === "Completada"
+                                        ? t.hero.completed
+                                        : t.hero.inProgress}
                                     </span>
                                   </td>
                                 </motion.tr>

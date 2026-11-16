@@ -1,12 +1,18 @@
+"use client";
+
 import Link from "next/link";
 import { Zap, ArrowRight } from "lucide-react";
+import { LanguageSwitcher } from "./LanguageSwitcher";
+import { useLanguage } from "@/lib/i18n/LanguageContext";
 
 export function Navbar() {
+  const { t } = useLanguage();
+
   return (
     <header className="sticky top-0 z-40 w-full border-b border-[#192030] bg-[#08090d]/85 backdrop-blur-md">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
         {/* Brand Logo */}
-        <Link href="/" className="flex items-center gap-2.5 group">
+        <Link href="/" className="flex items-center gap-2.5 group shrink-0">
           <div className="w-9 h-9 rounded-lg bg-[#00ff66]/10 border border-[#00ff66]/30 flex items-center justify-center transition-all duration-300 group-hover:border-[#00ff66] group-hover:shadow-[0_0_15px_rgba(0,255,102,0.3)]">
             <Zap className="w-5 h-5 text-[#00ff66] transition-transform duration-300 group-hover:scale-110" />
           </div>
@@ -15,7 +21,7 @@ export function Navbar() {
               CYCLON <span className="text-[#00ff66]">P2P</span>
             </span>
             <span className="text-[10px] text-slate-400 font-mono tracking-widest uppercase">
-              Control & Trazabilidad
+              {t.nav.brandSubtitle}
             </span>
           </div>
         </Link>
@@ -26,41 +32,43 @@ export function Navbar() {
             href="/#producto"
             className="hover:text-[#00ff66] transition-colors"
           >
-            Producto
+            {t.nav.product}
           </Link>
           <Link
             href="/#features"
             className="hover:text-[#00ff66] transition-colors"
           >
-            Funcionalidades
+            {t.nav.features}
           </Link>
           <Link
             href="/#pricing"
             className="hover:text-[#00ff66] transition-colors"
           >
-            Precios
+            {t.nav.pricing}
           </Link>
           <Link
             href="/#faq"
             className="hover:text-[#00ff66] transition-colors"
           >
-            FAQ
+            {t.nav.faq}
           </Link>
         </nav>
 
-        {/* CTA buttons */}
-        <div className="flex items-center gap-3">
+        {/* CTA buttons + Language Switcher */}
+        <div className="flex items-center gap-2 sm:gap-3">
+          <LanguageSwitcher />
+
           <Link
             href="/login"
-            className="inline-flex items-center justify-center font-medium rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[#00ff66]/50 select-none cursor-pointer bg-transparent text-slate-300 hover:bg-[#161922] hover:text-white text-xs sm:text-sm px-3 py-1.5"
+            className="inline-flex items-center justify-center font-medium rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[#00ff66]/50 select-none cursor-pointer bg-transparent text-slate-300 hover:bg-[#161922] hover:text-white text-xs sm:text-sm px-2.5 sm:px-3 py-1.5"
           >
-            Iniciar sesión
+            {t.nav.login}
           </Link>
           <Link
             href="/registro"
-            className="inline-flex items-center justify-center rounded-full transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[#00ff66]/50 select-none cursor-pointer bg-[#00ff66] text-[#08090d] font-bold hover:bg-[#00e55b] hover:shadow-[0_0_20px_rgba(0,255,102,0.35)] active:scale-[0.98] text-xs sm:text-sm px-4 py-2 gap-1.5"
+            className="inline-flex items-center justify-center rounded-full transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[#00ff66]/50 select-none cursor-pointer bg-[#00ff66] text-[#08090d] font-bold hover:bg-[#00e55b] hover:shadow-[0_0_20px_rgba(0,255,102,0.35)] active:scale-[0.98] text-xs sm:text-sm px-3.5 sm:px-4 py-2 gap-1.5 shrink-0"
           >
-            <span>Prueba gratis</span>
+            <span>{t.nav.freeTrial}</span>
             <ArrowRight className="w-3.5 h-3.5" />
           </Link>
         </div>

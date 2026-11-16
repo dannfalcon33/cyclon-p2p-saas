@@ -5,6 +5,7 @@ import { motion, type Variants } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { type PlanCodeOption } from "@/components/plans/PlanCheckoutModal";
 import { CheckCircle2 } from "lucide-react";
+import { useLanguage } from "@/lib/i18n/LanguageContext";
 
 interface PricingSectionProps {
   onSelectPlan: (plan: PlanCodeOption) => void;
@@ -32,6 +33,8 @@ const planCardVariants: Variants = {
 };
 
 export function PricingSection({ onSelectPlan }: PricingSectionProps) {
+  const { t } = useLanguage();
+
   return (
     <section
       id="pricing"
@@ -50,15 +53,13 @@ export function PricingSection({ onSelectPlan }: PricingSectionProps) {
           className="text-center max-w-3xl mx-auto mb-12 space-y-3"
         >
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#00ff66]/10 border border-[#00ff66]/30 text-xs font-mono text-[#00ff66]">
-            <span>Planes flexibles</span>
+            <span>{t.pricing.badge}</span>
           </div>
           <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-white">
-            Planes transparentes para cada escala
+            {t.pricing.title}
           </h2>
           <p className="text-slate-400 text-xs sm:text-sm">
-            Elige el plan que se adapte a tu operación, introduce tus datos de
-            usuario y activa tu cuenta hoy mismo mediante checkout Demo sin
-            cobros reales.
+            {t.pricing.subtitle}
           </p>
         </motion.div>
 
@@ -79,37 +80,39 @@ export function PricingSection({ onSelectPlan }: PricingSectionProps) {
             <div className="space-y-5">
               <div className="flex items-start justify-between gap-2">
                 <div>
-                  <h3 className="text-lg font-bold text-white">Free Trial</h3>
+                  <h3 className="text-lg font-bold text-white">
+                    {t.pricing.trialName}
+                  </h3>
                   <p className="text-xs text-slate-400 mt-0.5">
-                    Evaluación operativa completa
+                    {t.pricing.trialBadge}
                   </p>
                 </div>
                 <span className="px-2.5 py-1 rounded-full bg-[#00ff66]/15 border border-[#00ff66]/40 text-[#00ff66] font-mono text-[10px] font-bold uppercase">
-                  7 Días Gratis
+                  {t.pricing.trialPeriod}
                 </span>
               </div>
 
               <div className="flex items-baseline gap-1 font-mono">
-                <span className="text-4xl font-extrabold text-white">$0.00</span>
-                <span className="text-xs text-slate-400">/ 7 días</span>
+                <span className="text-4xl font-extrabold text-white">
+                  {t.pricing.trialPrice}
+                </span>
+                <span className="text-xs text-slate-400">
+                  {t.pricing.trialPeriod}
+                </span>
               </div>
 
               <ul className="space-y-3 text-xs sm:text-sm text-slate-300 pt-2 border-t border-[#182030]">
                 <li className="flex items-center gap-2.5">
                   <CheckCircle2 className="w-4 h-4 text-[#00ff66] shrink-0" />
-                  <span>Acceso completo al dashboard y bitácora</span>
+                  <span>{t.pricing.trialItem1}</span>
                 </li>
                 <li className="flex items-center gap-2.5">
                   <CheckCircle2 className="w-4 h-4 text-[#00ff66] shrink-0" />
-                  <span>Comisiones configurables para 7 países</span>
+                  <span>{t.pricing.trialItem2}</span>
                 </li>
                 <li className="flex items-center gap-2.5">
                   <CheckCircle2 className="w-4 h-4 text-[#00ff66] shrink-0" />
-                  <span>Reportes básicos en Excel (.xlsx)</span>
-                </li>
-                <li className="flex items-center gap-2.5">
-                  <CheckCircle2 className="w-4 h-4 text-[#00ff66] shrink-0" />
-                  <span>Catálogo privado de bancos y métodos</span>
+                  <span>{t.pricing.trialItem3}</span>
                 </li>
               </ul>
             </div>
@@ -120,7 +123,7 @@ export function PricingSection({ onSelectPlan }: PricingSectionProps) {
                 className="w-full bg-[#131926] border-[#263147] hover:border-[#00ff66]/50 text-white"
                 onClick={() => onSelectPlan("free_trial")}
               >
-                Comenzar prueba
+                {t.pricing.trialBtn}
               </Button>
             </div>
           </motion.div>
@@ -134,39 +137,43 @@ export function PricingSection({ onSelectPlan }: PricingSectionProps) {
             <div className="space-y-5">
               <div className="flex items-start justify-between gap-2">
                 <div>
-                  <h3 className="text-lg font-bold text-white">Business</h3>
+                  <h3 className="text-lg font-bold text-white">
+                    {t.pricing.businessName}
+                  </h3>
                   <p className="text-xs text-slate-300 mt-0.5">
-                    Control operativo y contable continuo
+                    {t.pricing.recommendedBadge}
                   </p>
                 </div>
                 <span className="px-2.5 py-1 rounded-full bg-[#00ff66] text-[#08090d] font-mono text-[10px] font-extrabold uppercase tracking-wider">
-                  Más Popular
+                  {t.pricing.popularBadge}
                 </span>
               </div>
 
               <div className="flex items-baseline gap-1 font-mono">
                 <span className="text-4xl font-extrabold text-[#00ff66]">
-                  $29.00
+                  {t.pricing.businessPrice}
                 </span>
-                <span className="text-xs text-slate-400">/ mes (Demo)</span>
+                <span className="text-xs text-slate-400">
+                  {t.pricing.businessPeriod}
+                </span>
               </div>
 
               <ul className="space-y-3 text-xs sm:text-sm text-slate-200 pt-2 border-t border-[#1e293d]">
                 <li className="flex items-center gap-2.5">
                   <CheckCircle2 className="w-4 h-4 text-[#00ff66] shrink-0" />
-                  <span>Todas las funcionalidades operativas</span>
+                  <span>{t.pricing.businessItem1}</span>
                 </li>
                 <li className="flex items-center gap-2.5">
                   <CheckCircle2 className="w-4 h-4 text-[#00ff66] shrink-0" />
-                  <span>Reportes avanzados Excel (.xlsx) multihop</span>
+                  <span>{t.pricing.businessItem2}</span>
                 </li>
                 <li className="flex items-center gap-2.5">
                   <CheckCircle2 className="w-4 h-4 text-[#00ff66] shrink-0" />
-                  <span>Trazabilidad histórica sin expiración</span>
+                  <span>{t.pricing.businessItem3}</span>
                 </li>
                 <li className="flex items-center gap-2.5">
                   <CheckCircle2 className="w-4 h-4 text-[#00ff66] shrink-0" />
-                  <span>Soporte prioritario y auditoría de márgenes</span>
+                  <span>{t.pricing.businessItem4}</span>
                 </li>
               </ul>
             </div>
@@ -177,7 +184,7 @@ export function PricingSection({ onSelectPlan }: PricingSectionProps) {
                 className="w-full font-bold text-sm shadow-[0_0_25px_rgba(0,255,102,0.3)]"
                 onClick={() => onSelectPlan("business")}
               >
-                Probar Business
+                {t.pricing.businessBtn}
               </Button>
             </div>
           </motion.div>
@@ -191,39 +198,43 @@ export function PricingSection({ onSelectPlan }: PricingSectionProps) {
             <div className="space-y-5">
               <div className="flex items-start justify-between gap-2">
                 <div>
-                  <h3 className="text-lg font-bold text-white">Enterprise</h3>
+                  <h3 className="text-lg font-bold text-white">
+                    {t.pricing.enterpriseName}
+                  </h3>
                   <p className="text-xs text-slate-400 mt-0.5">
-                    Inteligencia de mercado y alto volumen
+                    {t.pricing.advancedBadge}
                   </p>
                 </div>
                 <span className="px-2.5 py-1 rounded-full bg-[#00f0ff]/15 border border-[#00f0ff]/40 text-[#00f0ff] font-mono text-[10px] font-bold uppercase">
-                  Avanzado
+                  {t.pricing.advancedBadge}
                 </span>
               </div>
 
               <div className="flex items-baseline gap-1 font-mono">
                 <span className="text-4xl font-extrabold text-white">
-                  $79.00
+                  {t.pricing.enterprisePrice}
                 </span>
-                <span className="text-xs text-slate-400">/ mes (Demo)</span>
+                <span className="text-xs text-slate-400">
+                  {t.pricing.enterprisePeriod}
+                </span>
               </div>
 
               <ul className="space-y-3 text-xs sm:text-sm text-slate-300 pt-2 border-t border-[#182030]">
                 <li className="flex items-center gap-2.5">
                   <CheckCircle2 className="w-4 h-4 text-[#00ff66] shrink-0" />
-                  <span>Todo lo incluido en el plan Business</span>
+                  <span>{t.pricing.enterpriseItem1}</span>
                 </li>
                 <li className="flex items-center gap-2.5">
                   <CheckCircle2 className="w-4 h-4 text-[#00f0ff] shrink-0" />
-                  <span>Módulo de Mercado: Gráficos BTC, ETH, SOL, BNB</span>
+                  <span>{t.pricing.enterpriseItem2}</span>
                 </li>
                 <li className="flex items-center gap-2.5">
                   <CheckCircle2 className="w-4 h-4 text-[#00f0ff] shrink-0" />
-                  <span>Feed de noticias cripto y alertas en vivo</span>
+                  <span>{t.pricing.enterpriseItem3}</span>
                 </li>
                 <li className="flex items-center gap-2.5">
                   <CheckCircle2 className="w-4 h-4 text-[#00f0ff] shrink-0" />
-                  <span>Soporte dedicado y acuerdo empresarial</span>
+                  <span>{t.pricing.enterpriseItem4}</span>
                 </li>
               </ul>
             </div>
@@ -234,7 +245,7 @@ export function PricingSection({ onSelectPlan }: PricingSectionProps) {
                 className="w-full bg-[#131926] border-[#263147] hover:border-[#00f0ff]/60 text-white"
                 onClick={() => onSelectPlan("enterprise")}
               >
-                Probar Enterprise
+                {t.pricing.enterpriseBtn}
               </Button>
             </div>
           </motion.div>
