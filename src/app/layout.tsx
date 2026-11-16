@@ -16,6 +16,15 @@ export const metadata: Metadata = {
   title: "Cyclon P2P — Dashboard & Bitácora de Operaciones P2P",
   description:
     "Control centralizado de operaciones P2P para Binance, Bybit y Bitget. Comisiones por país, exportaciones contables en Excel y analítica avanzada.",
+  icons: {
+    icon: [
+      { url: "/icon.svg", type: "image/svg+xml" },
+      { url: "/favicon.ico", sizes: "any" },
+    ],
+    apple: [
+      { url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" },
+    ],
+  },
 };
 
 import { ToastProvider } from "@/components/ui/toast";

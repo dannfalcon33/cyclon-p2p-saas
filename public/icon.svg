@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0d121c"/>
+      <stop offset="100%" stop-color="#08090d"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Container Base -->
+  <rect x="1" y="1" width="30" height="30" rx="7.5" fill="url(#bgGrad)" stroke="#00ff66" stroke-width="1.5" stroke-opacity="0.45"/>
+  <rect x="2" y="2" width="28" height="28" rx="6.5" fill="#00ff66" fill-opacity="0.12"/>
+
+  <!-- Centered Zap Lightning Bolt -->
+  <g transform="translate(16, 16) scale(0.85) translate(-12, -12)">
+    <path
+      d="M15.914 4a1.5 1.5 0 00-2.474-1.561l-9 9A1.5 1.5 0 005.5 14h4.002a.5.5 0 01.471.666L8.086 20a1.5 1.5 0 002.475 1.56l9-9A1.5 1.5 0 0018.5 10h-3.997a.5.5 0 01-.472-.667z"
+      fill="#00ff66"
+      stroke="#00ff66"
+      stroke-width="0.5"
+      stroke-linejoin="round"
+    />
+  </g>
+</svg>
